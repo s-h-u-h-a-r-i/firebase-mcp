@@ -1,0 +1,28 @@
+node_modules
+dist
+
+# Environment & credentials
+.env
+.env.*
+*.key
+*.pem
+service-account*.json
+firebase-adminsdk*.json
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea
+.vscode
+*.swp
+.cursor/hooks/state
