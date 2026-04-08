@@ -1,4 +1,5 @@
 import { Data, Effect, Schema } from 'effect';
+import minimist from 'minimist';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -29,32 +30,40 @@ const AppConfigSchema = Schema.Struct({
 
 export type AppConfig = Schema.Schema.Type<typeof AppConfigSchema>;
 
-export const loadConfig = (configPath: string) =>
-  Effect.gen(function* () {
-    const absolutePath = resolve(configPath);
+export class ConfigService extends Effect.Service<ConfigService>()(
+  'ConfigService',
+  {
+    accessors: true,
+    effect: Effect.gen(function* () {
+      const args = minimist(process.argv.slice(2));
+      const configPath: string = args['config'] ?? './firebase-mcp.json';
+      const absolutePath = resolve(configPath);
 
-    const raw = yield* Effect.try({
-      // TODO: why not node:fs/promises?
-      try: () => readFileSync(absolutePath, 'utf-8'),
-      catch: (cause) =>
-        new ConfigError({
-          message: `Config file not found: ${absolutePath}`,
-          cause,
-        }),
-    });
+      const raw = yield* Effect.try({
+        try: () => readFileSync(absolutePath, 'utf-8'),
+        catch: (cause) =>
+          new ConfigError({
+            message: `Config file not found: ${absolutePath}`,
+            cause,
+          }),
+      });
 
-    const json = yield* Effect.try({
-      try: () => JSON.parse(raw) as unknown,
-      catch: (cause) =>
-        new ConfigError({ message: `Config file is not valid JSON`, cause }),
-    });
+      const json = yield* Effect.try({
+        try: () => JSON.parse(raw) as unknown,
+        catch: (cause) =>
+          new ConfigError({ message: `Config file is not valid JSON`, cause }),
+      });
 
-    const config = yield* Schema.decodeUnknown(AppConfigSchema)(json).pipe(
-      Effect.mapError(
-        (cause) =>
-          new ConfigError({ message: `Config validation failed`, cause }),
-      ),
-    );
+      const config = yield* Schema.decodeUnknown(AppConfigSchema)(json).pipe(
+        Effect.mapError(
+          (cause) =>
+            new ConfigError({ message: `Config validation failed`, cause }),
+        ),
+      );
 
-    return config;
-  });
+      return {
+        config,
+      };
+    }),
+  },
+) {}
