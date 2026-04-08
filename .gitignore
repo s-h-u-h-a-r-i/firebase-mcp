@@ -8,6 +8,8 @@ dist
 *.pem
 service-account*.json
 firebase-adminsdk*.json
+secrets/
+firebase-mcp.json
 
 # TypeScript
 *.tsbuildinfo
