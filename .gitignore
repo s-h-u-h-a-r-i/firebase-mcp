@@ -28,3 +28,4 @@ Thumbs.db
 .vscode
 *.swp
 .cursor/hooks/state
+.cursor/mcp.json
