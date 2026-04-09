@@ -37,6 +37,7 @@ export interface QueryCollectionArgs {
   orderBy?: QueryOrderBy[];
   limit?: number;
   select?: string[];
+  startAfter?: string;
 }
 
 const VALID_OPERATORS: WhereFilterOp[] = [
@@ -55,7 +56,7 @@ const VALID_OPERATORS: WhereFilterOp[] = [
 export const queryCollectionDefinition: Tool = {
   name: QUERY_COLLECTION,
   description:
-    'Query a Firestore collection with filters, ordering, and a limit',
+    'Query a Firestore collection with filters, ordering, and a limit. Supports cursor-based pagination via startAfter.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -109,6 +110,11 @@ export const queryCollectionDefinition: Tool = {
         description:
           'Optional list of field paths to return. Omit to return all fields.',
       },
+      startAfter: {
+        type: 'string',
+        description:
+          'Document ID to start after for pagination. Use the nextPageCursor value returned from a previous call.',
+      },
     },
     required: ['collection'],
   },
@@ -124,6 +130,21 @@ export const queryCollection = (input: QueryCollectionArgs) =>
 
     const maxLimit = config.firestore.maxLimit;
     const limit = Math.min(input.limit ?? maxLimit, maxLimit);
+
+    const cursorSnap = input.startAfter
+      ? yield* Effect.tryPromise({
+          try: () =>
+            firestore()
+              .collection(input.collection)
+              .doc(input.startAfter!)
+              .get(),
+          catch: (cause) =>
+            new FirestoreQueryError({
+              message: `Failed to fetch cursor document: ${input.startAfter}`,
+              cause,
+            }),
+        })
+      : null;
 
     const snapshot = yield* Effect.tryPromise({
       try: () => {
@@ -143,6 +164,10 @@ export const queryCollection = (input: QueryCollectionArgs) =>
           query = query.orderBy(order.field, order.direction ?? 'asc');
         }
 
+        if (cursorSnap) {
+          query = query.startAfter(cursorSnap);
+        }
+
         return query.limit(limit).get();
       },
       catch: (cause) =>
@@ -152,5 +177,9 @@ export const queryCollection = (input: QueryCollectionArgs) =>
         }),
     });
 
-    return snapshot.docs.map(normalizeDocument);
+    const documents = snapshot.docs.map(normalizeDocument);
+    const nextPageCursor =
+      documents.length === limit ? documents[documents.length - 1].id : null;
+
+    return { documents, nextPageCursor };
   });

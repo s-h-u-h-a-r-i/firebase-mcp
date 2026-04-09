@@ -17,6 +17,7 @@ export interface ReadCollectionArgs {
   limit?: number;
   select?: string[];
   includePhantoms?: boolean;
+  startAfter?: string;
 }
 
 export const readCollectionDefinition: Tool = {
@@ -44,6 +45,11 @@ export const readCollectionDefinition: Tool = {
         description:
           'If true and the collection returns no documents, automatically falls back to listDocuments() to surface phantom documents (documents with no fields that exist only as parents of subcollections).',
       },
+      startAfter: {
+        type: 'string',
+        description:
+          'Document ID to start after for pagination. Use the nextPageCursor value returned from a previous call.',
+      },
     },
     required: ['collection'],
   },
@@ -60,6 +66,21 @@ export const readCollection = (input: ReadCollectionArgs) =>
     const maxLimit = config.firestore.maxLimit;
     const limit = Math.min(input.limit ?? maxLimit, maxLimit);
 
+    const cursorSnap = input.startAfter
+      ? yield* Effect.tryPromise({
+          try: () =>
+            firestore()
+              .collection(input.collection)
+              .doc(input.startAfter!)
+              .get(),
+          catch: (cause) =>
+            new FirestoreReadError({
+              message: `Failed to fetch cursor document: ${input.startAfter}`,
+              cause,
+            }),
+        })
+      : null;
+
     const snapshot = yield* Effect.tryPromise({
       try: () => {
         let query: FirebaseFirestore.Query = firestore().collection(
@@ -68,6 +89,10 @@ export const readCollection = (input: ReadCollectionArgs) =>
 
         if (input.select?.length) {
           query = query.select(...input.select);
+        }
+
+        if (cursorSnap) {
+          query = query.startAfter(cursorSnap);
         }
 
         return query.limit(limit).get();
@@ -95,5 +120,8 @@ export const readCollection = (input: ReadCollectionArgs) =>
       return { documents, phantoms };
     }
 
-    return { documents };
+    const nextPageCursor =
+      documents.length === limit ? documents[documents.length - 1].id : null;
+
+    return { documents, nextPageCursor };
   });
