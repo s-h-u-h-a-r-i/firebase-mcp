@@ -21,7 +21,7 @@ export interface GetCollectionSchemaArgs {
 
 interface FieldSchema {
   types: string[];
-  optional: boolean;
+  coverage: string;
 }
 
 const inferType = (value: unknown): string => {
@@ -46,7 +46,7 @@ const inferType = (value: unknown): string => {
 export const getCollectionSchemaDefinition: Tool = {
   name: GET_COLLECTION_SCHEMA,
   description:
-    'Infer the schema of a Firestore collection by sampling documents from both ends of the collection. Returns field names, types (integer, float, string, boolean, timestamp, etc.), and whether each field is optional.',
+    'Infer the schema of a Firestore collection by sampling documents. Returns field names, inferred types (integer, float, string, boolean, timestamp, geopoint, reference, array, map), and coverage (how many sampled docs contained each field). Coverage of 10/10 does not guarantee a field is always present — documents may have different fields depending on their state or lifecycle stage.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -75,20 +75,8 @@ export const getCollectionSchema = (input: GetCollectionSchemaArgs) =>
     const total = input.sampleSize ?? 20;
     const half = Math.ceil(total / 2);
 
-    const [fromStart, fromEnd] = yield* Effect.tryPromise({
-      try: () =>
-        Promise.all([
-          firestore()
-            .collection(input.collection)
-            .orderBy(admin.firestore.FieldPath.documentId(), 'asc')
-            .limit(half)
-            .get(),
-          firestore()
-            .collection(input.collection)
-            .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
-            .limit(half)
-            .get(),
-        ]),
+    const fromStart = yield* Effect.tryPromise({
+      try: () => firestore().collection(input.collection).limit(half).get(),
       catch: (cause) =>
         new FirestoreSchemaError({
           message: `Failed to sample collection: ${input.collection}`,
@@ -96,11 +84,25 @@ export const getCollectionSchema = (input: GetCollectionSchemaArgs) =>
         }),
     });
 
+    // Attempt to sample from the end for better coverage.
+    // Falls back gracefully if a composite index is not available.
+    const fromEnd = yield* Effect.tryPromise({
+      try: () =>
+        firestore()
+          .collection(input.collection)
+          .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
+          .limit(total - half)
+          .get()
+          .catch(() => null),
+      catch: () => new FirestoreSchemaError({ message: 'fallback' }),
+    });
+
     // Deduplicate by document ID
     const seen = new Set<string>();
     const docs: Record<string, unknown>[] = [];
+    const snaps = fromEnd ? [fromStart, fromEnd] : [fromStart];
 
-    for (const snap of [fromStart, fromEnd]) {
+    for (const snap of snaps) {
       for (const doc of snap.docs) {
         if (!seen.has(doc.id)) {
           seen.add(doc.id);
@@ -109,6 +111,10 @@ export const getCollectionSchema = (input: GetCollectionSchemaArgs) =>
         }
       }
     }
+
+    const sampleStrategy = fromEnd
+      ? `${half} from start + ${total - half} from end (deduplicated)`
+      : `${half} from start only (descending index unavailable)`;
 
     const totalSampled = docs.length;
 
@@ -127,16 +133,17 @@ export const getCollectionSchema = (input: GetCollectionSchemaArgs) =>
 
     const fields: Record<string, FieldSchema> = {};
     for (const [field, types] of fieldTypes.entries()) {
+      const count = fieldCount.get(field) ?? 0;
       fields[field] = {
         types: [...types],
-        optional: (fieldCount.get(field) ?? 0) < totalSampled,
+        coverage: `${count}/${totalSampled} sampled`,
       };
     }
 
     return {
       collection: input.collection,
       totalSampled,
-      sampleStrategy: `${half} from start + ${total - half} from end (deduplicated)`,
+      sampleStrategy,
       fields,
     };
   });
