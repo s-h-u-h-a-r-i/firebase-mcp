@@ -22,7 +22,7 @@
 
 - [x] **Pagination on `query_collection` and `read_collection`** — `startAfter` cursor + `nextPageCursor` in response
 - [x] **`get_many_documents`** — batch fetch via `paths[]` or `collection` + `ids[]`, `select` support, `maxBatchSize` config (default 200)
-- [ ] **`query_collection_group`** — query across all collections with the same name regardless of parent path (e.g. all `purchase_orders` across all stores)
+- [x] **`query_collection_group`** — query across all collections with the same name regardless of parent path, with filters/ordering/pagination
 
 ### Medium Priority
 

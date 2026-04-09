@@ -12,7 +12,8 @@ type ToolNames =
   | typeof FirestoreTool.GET_DOCUMENT
   | typeof FirestoreTool.LIST_COLLECTIONS
   | typeof FirestoreTool.LIST_DOCUMENTS
-  | typeof FirestoreTool.QUERY_COLLECTION;
+  | typeof FirestoreTool.QUERY_COLLECTION
+  | typeof FirestoreTool.QUERY_COLLECTION_GROUP;
 
 export const allToolDefinitions: Tool[] = [
   FirestoreTool.listCollectionsDefinition,
@@ -24,6 +25,7 @@ export const allToolDefinitions: Tool[] = [
   FirestoreTool.getDocumentDefinition,
   FirestoreTool.getManyDocumentsDefinition,
   FirestoreTool.queryCollectionDefinition,
+  FirestoreTool.queryCollectionGroupDefinition,
 ];
 
 const toErrorResult = (
@@ -68,6 +70,10 @@ export const dispatchTool = (
       case FirestoreTool.LIST_INDEXES:
         return yield* FirestoreTool.listIndexes(
           args as unknown as FirestoreTool.ListIndexesArgs,
+        );
+      case FirestoreTool.QUERY_COLLECTION_GROUP:
+        return yield* FirestoreTool.queryCollectionGroup(
+          args as unknown as FirestoreTool.QueryCollectionGroupArgs,
         );
       case FirestoreTool.LIST_COLLECTIONS:
         return yield* FirestoreTool.listCollections(
@@ -119,6 +125,7 @@ export const dispatchTool = (
         case 'FirestoreSchemaError':
         case 'FirestoreGetManyError':
         case 'FirestoreListIndexesError':
+        case 'FirestoreCollectionGroupQueryError':
           return Effect.succeed(
             toErrorResult('FIRESTORE_ERROR', err.message, {
               cause: String(err.cause),

@@ -1,10 +1,8 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Data, Effect } from 'effect';
-import { WhereFilterOp } from 'firebase-admin/firestore';
-
 import { AccessService } from '../../access';
 import { FirebaseService } from '../../firebase';
-import { QueryFilter } from './query_collection';
+import { FILTER_SCHEMA_ITEM, QueryFilter } from './types';
 
 export class FirestoreCountError extends Data.TaggedError(
   'FirestoreCountError',
@@ -20,19 +18,6 @@ export interface CountDocumentsArgs {
   filters?: QueryFilter[];
 }
 
-const VALID_OPERATORS: WhereFilterOp[] = [
-  '<',
-  '<=',
-  '==',
-  '!=',
-  '>=',
-  '>',
-  'array-contains',
-  'array-contains-any',
-  'in',
-  'not-in',
-];
-
 export const countDocumentsDefinition: Tool = {
   name: COUNT_DOCUMENTS,
   description:
@@ -47,22 +32,7 @@ export const countDocumentsDefinition: Tool = {
       filters: {
         type: 'array',
         description: 'Optional where-clause filters to narrow the count',
-        items: {
-          type: 'object',
-          properties: {
-            field: { type: 'string', description: 'Field name to filter on' },
-            operator: {
-              type: 'string',
-              enum: VALID_OPERATORS,
-              description: 'Comparison operator',
-            },
-            value: {
-              description:
-                'Value to compare against (string, number, boolean, null, or array for in/array-contains-any/not-in)',
-            },
-          },
-          required: ['field', 'operator', 'value'],
-        },
+        items: FILTER_SCHEMA_ITEM,
       },
     },
     required: ['collection'],

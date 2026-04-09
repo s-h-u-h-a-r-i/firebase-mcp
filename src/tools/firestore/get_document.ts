@@ -2,7 +2,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Data, Effect } from 'effect';
 import { AccessService } from '../../access';
 import { FirebaseService } from '../../firebase';
-import { normalizeDocument } from './normalize';
+import { normalizeDocument } from './types';
 
 export class FirestoreGetError extends Data.TaggedError('FirestoreGetError')<{
   readonly message: string;

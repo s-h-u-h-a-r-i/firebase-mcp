@@ -12,17 +12,17 @@ import {
   QueryOrderBy,
 } from './types';
 
-export class FirestoreQueryError extends Data.TaggedError(
-  'FirestoreQueryError',
+export class FirestoreCollectionGroupQueryError extends Data.TaggedError(
+  'FirestoreCollectionGroupQueryError',
 )<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
-export const QUERY_COLLECTION = 'query_collection' as const;
+export const QUERY_COLLECTION_GROUP = 'query_collection_group' as const;
 
-export interface QueryCollectionArgs {
-  collection: string;
+export interface QueryCollectionGroupArgs {
+  collectionId: string;
   filters?: QueryFilter[];
   orderBy?: QueryOrderBy[];
   limit?: number;
@@ -30,16 +30,17 @@ export interface QueryCollectionArgs {
   startAfter?: string;
 }
 
-export const queryCollectionDefinition: Tool = {
-  name: QUERY_COLLECTION,
+export const queryCollectionGroupDefinition: Tool = {
+  name: QUERY_COLLECTION_GROUP,
   description:
-    'Query a Firestore collection with filters, ordering, and a limit. Supports cursor-based pagination via startAfter.',
+    'Query across all Firestore collections with the same name, regardless of their parent path. Use this to query data across multiple stores or parent documents at once. Check list_indexes first to confirm a collection-group-scoped index exists for any filters or ordering you plan to use.',
   inputSchema: {
     type: 'object',
     properties: {
-      collection: {
+      collectionId: {
         type: 'string',
-        description: "Collection path, e.g. 'users' or 'users/123/posts'",
+        description:
+          "The collection name to query across all parents, e.g. 'purchase_orders' or 'stock'.",
       },
       filters: {
         type: 'array',
@@ -48,7 +49,8 @@ export const queryCollectionDefinition: Tool = {
       },
       orderBy: {
         type: 'array',
-        description: 'Optional ordering of results',
+        description:
+          'Optional ordering of results. Requires a collection-group index.',
         items: ORDER_BY_SCHEMA_ITEM,
       },
       limit: {
@@ -64,17 +66,17 @@ export const queryCollectionDefinition: Tool = {
       startAfter: {
         type: 'string',
         description:
-          'Document ID to start after for pagination. Use the nextPageCursor value returned from a previous call.',
+          'Full document path to start after for pagination, e.g. "shared/stores_data/ABC/data/purchase_orders/51721". Use the path from the last document in the previous page.',
       },
     },
-    required: ['collection'],
+    required: ['collectionId'],
   },
 };
 
-export const queryCollection = (input: QueryCollectionArgs) =>
+export const queryCollectionGroup = (input: QueryCollectionGroupArgs) =>
   Effect.gen(function* () {
     const access = yield* AccessService;
-    yield* access.check(input.collection);
+    yield* access.check(input.collectionId);
 
     const { config } = yield* ConfigService;
     const { firestore } = yield* FirebaseService;
@@ -82,15 +84,12 @@ export const queryCollection = (input: QueryCollectionArgs) =>
     const maxLimit = config.firestore.maxCollectionReadSize;
     const limit = Math.min(input.limit ?? maxLimit, maxLimit);
 
+    // For collection group pagination, startAfter must be a full path
     const cursorSnap = input.startAfter
       ? yield* Effect.tryPromise({
-          try: () =>
-            firestore()
-              .collection(input.collection)
-              .doc(input.startAfter!)
-              .get(),
+          try: () => firestore().doc(input.startAfter!).get(),
           catch: (cause) =>
-            new FirestoreQueryError({
+            new FirestoreCollectionGroupQueryError({
               message: `Failed to fetch cursor document: ${input.startAfter}`,
               cause,
             }),
@@ -99,8 +98,8 @@ export const queryCollection = (input: QueryCollectionArgs) =>
 
     const snapshot = yield* Effect.tryPromise({
       try: () => {
-        let query: FirebaseFirestore.Query = firestore().collection(
-          input.collection,
+        let query: FirebaseFirestore.Query = firestore().collectionGroup(
+          input.collectionId,
         );
 
         if (input.select?.length) {
@@ -122,15 +121,15 @@ export const queryCollection = (input: QueryCollectionArgs) =>
         return query.limit(limit).get();
       },
       catch: (cause) =>
-        new FirestoreQueryError({
-          message: `Failed to query collection: ${input.collection}`,
+        new FirestoreCollectionGroupQueryError({
+          message: `Failed to query collection group: ${input.collectionId}`,
           cause,
         }),
     });
 
     const documents = snapshot.docs.map(normalizeDocument);
     const nextPageCursor =
-      documents.length === limit ? documents[documents.length - 1].id : null;
+      documents.length === limit ? documents[documents.length - 1].path : null;
 
     return { documents, nextPageCursor };
   });

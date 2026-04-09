@@ -4,7 +4,7 @@ import { Data, Effect } from 'effect';
 import { AccessService } from '../../access';
 import { ConfigService } from '../../config';
 import { FirebaseService } from '../../firebase';
-import { normalizeDocument } from './normalize';
+import { normalizeDocument } from './types';
 
 export class FirestoreGetManyError extends Data.TaggedError(
   'FirestoreGetManyError',
