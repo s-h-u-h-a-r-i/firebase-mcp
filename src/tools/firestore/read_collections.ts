@@ -16,6 +16,7 @@ export interface ReadCollectionArgs {
   collection: string;
   limit?: number;
   select?: string[];
+  includePhantoms?: boolean;
 }
 
 export const readCollectionDefinition: Tool = {
@@ -37,6 +38,11 @@ export const readCollectionDefinition: Tool = {
         items: { type: 'string' },
         description:
           'Optional list of field paths to return. Omit to return all fields.',
+      },
+      includePhantoms: {
+        type: 'boolean',
+        description:
+          'If true and the collection returns no documents, automatically falls back to listDocuments() to surface phantom documents (documents with no fields that exist only as parents of subcollections).',
       },
     },
     required: ['collection'],
@@ -73,5 +79,21 @@ export const readCollection = (input: ReadCollectionArgs) =>
         }),
     });
 
-    return snapshot.docs.map(normalizeDocument);
+    const documents = snapshot.docs.map(normalizeDocument);
+
+    if (documents.length === 0 && input.includePhantoms) {
+      const refs = yield* Effect.tryPromise({
+        try: () => firestore().collection(input.collection).listDocuments(),
+        catch: (cause) =>
+          new FirestoreReadError({
+            message: `Failed to list phantom documents in: ${input.collection}`,
+            cause,
+          }),
+      });
+
+      const phantoms = refs.map((ref) => ({ id: ref.id, path: ref.path }));
+      return { documents, phantoms };
+    }
+
+    return { documents };
   });

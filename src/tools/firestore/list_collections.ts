@@ -15,6 +15,7 @@ export const LIST_COLLECTIONS = 'list_collections' as const;
 
 export interface ListCollectionsArgs {
   path?: string;
+  includeCounts?: boolean;
 }
 
 export const listCollectionsDefinition: Tool = {
@@ -28,6 +29,11 @@ export const listCollectionsDefinition: Tool = {
         type: 'string',
         description:
           "Optional document path whose subcollections to list, e.g. 'users/123'. Omit to list root-level collections.",
+      },
+      includeCounts: {
+        type: 'boolean',
+        description:
+          'If true, includes the document count for each collection. Useful for quickly understanding the scale of each collection without separate count_documents calls.',
       },
     },
   },
@@ -55,6 +61,24 @@ export const listCollections = (input: ListCollectionsArgs) =>
           cause,
         }),
     });
+
+    if (input.includeCounts) {
+      const results = yield* Effect.tryPromise({
+        try: () =>
+          Promise.all(
+            collections.map(async (col) => {
+              const snap = await col.count().get();
+              return { id: col.id, path: col.path, count: snap.data().count };
+            }),
+          ),
+        catch: (cause) =>
+          new FirestoreListCollectionsError({
+            message: 'Failed to get counts for collections',
+            cause,
+          }),
+      });
+      return results;
+    }
 
     return collections.map((col) => ({ id: col.id, path: col.path }));
   });
