@@ -34,7 +34,10 @@ const toSuccessResult = (data: unknown): CallToolResult => ({
   content: [{ type: 'text', text: JSON.stringify({ success: true, data }) }],
 });
 
-export const dispatchTool = (name: string, args: Record<string, unknown>) =>
+export const dispatchTool = (
+  name: 'read_collection' | 'get_document' | (string & {}),
+  args: Record<string, unknown>,
+) =>
   Effect.gen(function* () {
     switch (name) {
       case 'read_collection':
