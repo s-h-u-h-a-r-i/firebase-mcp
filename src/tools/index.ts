@@ -1,48 +1,23 @@
 import { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Effect } from 'effect';
 
-import {
-  COUNT_DOCUMENTS,
-  CountDocumentsArgs,
-  GET_DOCUMENT,
-  GetDocumentArgs,
-  LIST_COLLECTIONS,
-  LIST_DOCUMENTS,
-  ListCollectionsArgs,
-  ListDocumentsArgs,
-  QUERY_COLLECTION,
-  QueryCollectionArgs,
-  READ_COLLECTION,
-  ReadCollectionArgs,
-  countDocuments,
-  countDocumentsDefinition,
-  getDocument,
-  getDocumentDefinition,
-  listCollections,
-  listCollectionsDefinition,
-  listDocuments,
-  listDocumentsDefinition,
-  queryCollection,
-  queryCollectionDefinition,
-  readCollection,
-  readCollectionDefinition,
-} from './firestore';
+import * as FirestoreTool from './firestore';
 
 type ToolNames =
-  | typeof COUNT_DOCUMENTS
-  | typeof READ_COLLECTION
-  | typeof GET_DOCUMENT
-  | typeof LIST_COLLECTIONS
-  | typeof LIST_DOCUMENTS
-  | typeof QUERY_COLLECTION;
+  | typeof FirestoreTool.COUNT_DOCUMENTS
+  | typeof FirestoreTool.READ_COLLECTION
+  | typeof FirestoreTool.GET_DOCUMENT
+  | typeof FirestoreTool.LIST_COLLECTIONS
+  | typeof FirestoreTool.LIST_DOCUMENTS
+  | typeof FirestoreTool.QUERY_COLLECTION;
 
 export const allToolDefinitions: Tool[] = [
-  listCollectionsDefinition,
-  listDocumentsDefinition,
-  countDocumentsDefinition,
-  readCollectionDefinition,
-  getDocumentDefinition,
-  queryCollectionDefinition,
+  FirestoreTool.listCollectionsDefinition,
+  FirestoreTool.listDocumentsDefinition,
+  FirestoreTool.countDocumentsDefinition,
+  FirestoreTool.readCollectionDefinition,
+  FirestoreTool.getDocumentDefinition,
+  FirestoreTool.queryCollectionDefinition,
 ];
 
 const toErrorResult = (
@@ -72,18 +47,30 @@ export const dispatchTool = (
 ) =>
   Effect.gen(function* () {
     switch (name) {
-      case COUNT_DOCUMENTS:
-        return yield* countDocuments(args as unknown as CountDocumentsArgs);
-      case LIST_COLLECTIONS:
-        return yield* listCollections(args as unknown as ListCollectionsArgs);
-      case LIST_DOCUMENTS:
-        return yield* listDocuments(args as unknown as ListDocumentsArgs);
-      case READ_COLLECTION:
-        return yield* readCollection(args as unknown as ReadCollectionArgs);
-      case GET_DOCUMENT:
-        return yield* getDocument(args as unknown as GetDocumentArgs);
-      case QUERY_COLLECTION:
-        return yield* queryCollection(args as unknown as QueryCollectionArgs);
+      case FirestoreTool.COUNT_DOCUMENTS:
+        return yield* FirestoreTool.countDocuments(
+          args as unknown as FirestoreTool.CountDocumentsArgs,
+        );
+      case FirestoreTool.LIST_COLLECTIONS:
+        return yield* FirestoreTool.listCollections(
+          args as unknown as FirestoreTool.ListCollectionsArgs,
+        );
+      case FirestoreTool.LIST_DOCUMENTS:
+        return yield* FirestoreTool.listDocuments(
+          args as unknown as FirestoreTool.ListDocumentsArgs,
+        );
+      case FirestoreTool.READ_COLLECTION:
+        return yield* FirestoreTool.readCollection(
+          args as unknown as FirestoreTool.ReadCollectionArgs,
+        );
+      case FirestoreTool.GET_DOCUMENT:
+        return yield* FirestoreTool.getDocument(
+          args as unknown as FirestoreTool.GetDocumentArgs,
+        );
+      case FirestoreTool.QUERY_COLLECTION:
+        return yield* FirestoreTool.queryCollection(
+          args as unknown as FirestoreTool.QueryCollectionArgs,
+        );
       default:
         return yield* Effect.fail({ _tag: 'UnknownTool' as const, name });
     }
