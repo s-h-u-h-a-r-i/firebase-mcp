@@ -1,15 +1,23 @@
 import { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
-
 import { Effect } from 'effect';
+
 import {
+  COUNT_DOCUMENTS,
+  CountDocumentsArgs,
   GET_DOCUMENT,
   GetDocumentArgs,
+  LIST_COLLECTIONS,
+  ListCollectionsArgs,
   QUERY_COLLECTION,
   QueryCollectionArgs,
   READ_COLLECTION,
   ReadCollectionArgs,
+  countDocuments,
+  countDocumentsDefinition,
   getDocument,
   getDocumentDefinition,
+  listCollections,
+  listCollectionsDefinition,
   queryCollection,
   queryCollectionDefinition,
   readCollection,
@@ -17,11 +25,15 @@ import {
 } from './firestore';
 
 type ToolNames =
+  | typeof COUNT_DOCUMENTS
   | typeof READ_COLLECTION
   | typeof GET_DOCUMENT
+  | typeof LIST_COLLECTIONS
   | typeof QUERY_COLLECTION;
 
 export const allToolDefinitions: Tool[] = [
+  listCollectionsDefinition,
+  countDocumentsDefinition,
   readCollectionDefinition,
   getDocumentDefinition,
   queryCollectionDefinition,
@@ -54,6 +66,10 @@ export const dispatchTool = (
 ) =>
   Effect.gen(function* () {
     switch (name) {
+      case COUNT_DOCUMENTS:
+        return yield* countDocuments(args as unknown as CountDocumentsArgs);
+      case LIST_COLLECTIONS:
+        return yield* listCollections(args as unknown as ListCollectionsArgs);
       case READ_COLLECTION:
         return yield* readCollection(args as unknown as ReadCollectionArgs);
       case GET_DOCUMENT:
@@ -84,6 +100,8 @@ export const dispatchTool = (
         case 'FirestoreReadError':
         case 'FirestoreGetError':
         case 'FirestoreQueryError':
+        case 'FirestoreListCollectionsError':
+        case 'FirestoreCountError':
           return Effect.succeed(
             toErrorResult('FIRESTORE_ERROR', err.message, {
               cause: String(err.cause),
