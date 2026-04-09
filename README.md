@@ -30,23 +30,12 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 ## Requirements
 
 - Node.js 18+
-- pnpm
 - A Firebase project with Firestore enabled
 - A service account JSON key with Firestore read permissions
 
 ## Setup
 
-**1. Install dependencies**
-
-```bash
-pnpm install
-```
-
-**2. Add your service account key**
-
-Place your Firebase service account JSON at `secrets/serviceAccount.json` (or any path you prefer — you'll point to it in the config).
-
-**3. Create `firebase-mcp.json`**
+**1. Create `firebase-mcp.json`**
 
 ```json
 {
@@ -65,19 +54,13 @@ Place your Firebase service account JSON at `secrets/serviceAccount.json` (or an
 }
 ```
 
-**4. Build**
+**2. Add your service account key**
 
-```bash
-pnpm build
-```
+Place your Firebase service account JSON at any path you prefer — you'll reference it in `firebase-mcp.json` above.
 
-**5. Run**
+**3. Wire it into your MCP host**
 
-```bash
-pnpm start
-# or, during development:
-pnpm dev
-```
+See the [Connecting to Cursor](#connecting-to-cursor) section below — no installation step required when using `npx`.
 
 ## Configuration
 
@@ -117,9 +100,10 @@ Add to your MCP config (e.g. `.cursor/mcp.json`):
 {
   "mcpServers": {
     "firebase": {
-      "command": "node",
+      "command": "npx",
       "args": [
-        "/path/to/firebase-mcp/dist/cli/index.js",
+        "-y",
+        "firebase-mcp",
         "--config",
         "/path/to/firebase-mcp.json"
       ]
@@ -127,6 +111,8 @@ Add to your MCP config (e.g. `.cursor/mcp.json`):
   }
 }
 ```
+
+`npx -y` will download and cache the package automatically on first run. No manual installation needed.
 
 ## License
 

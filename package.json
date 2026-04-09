@@ -1,17 +1,29 @@
 {
   "name": "firebase-mcp",
   "version": "0.1.0",
-  "description": "Firebase MCP server for AI agents",
+  "description": "MCP server that exposes Firebase Firestore to AI agents (Cursor, Claude Desktop, etc.)",
   "main": "dist/cli/index.js",
   "bin": {
     "firebase-mcp": "dist/cli/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
-    "start": "node dist/cli/index.js"
+    "start": "node dist/cli/index.js",
+    "prepublishOnly": "pnpm build"
   },
-  "keywords": [],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "firebase",
+    "firestore",
+    "ai",
+    "cursor",
+    "claude"
+  ],
   "author": "triston.c.0186@gmail.com",
   "license": "MIT",
   "packageManager": "pnpm@10.33.0",
