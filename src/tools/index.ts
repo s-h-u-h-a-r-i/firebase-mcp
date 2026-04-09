@@ -1,6 +1,7 @@
 import { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Effect } from 'effect';
 
+import * as AuthTool from './auth';
 import * as FirestoreTool from './firestore';
 
 type ToolNames =
@@ -14,7 +15,9 @@ type ToolNames =
   | typeof FirestoreTool.LIST_COLLECTIONS
   | typeof FirestoreTool.LIST_DOCUMENTS
   | typeof FirestoreTool.QUERY_COLLECTION
-  | typeof FirestoreTool.QUERY_COLLECTION_GROUP;
+  | typeof FirestoreTool.QUERY_COLLECTION_GROUP
+  | typeof AuthTool.GET_USER
+  | typeof AuthTool.LIST_USERS;
 
 export const allToolDefinitions: Tool[] = [
   FirestoreTool.aggregateCollectionDefinition,
@@ -28,6 +31,8 @@ export const allToolDefinitions: Tool[] = [
   FirestoreTool.getManyDocumentsDefinition,
   FirestoreTool.queryCollectionDefinition,
   FirestoreTool.queryCollectionGroupDefinition,
+  AuthTool.getUserDefinition,
+  AuthTool.listUsersDefinition,
 ];
 
 const toErrorResult = (
@@ -101,6 +106,12 @@ export const dispatchTool = (
         return yield* FirestoreTool.queryCollection(
           args as unknown as FirestoreTool.QueryCollectionArgs,
         );
+      case AuthTool.GET_USER:
+        return yield* AuthTool.getUser(args as unknown as AuthTool.GetUserArgs);
+      case AuthTool.LIST_USERS:
+        return yield* AuthTool.listUsers(
+          args as unknown as AuthTool.ListUsersArgs,
+        );
       default:
         return yield* Effect.fail({ _tag: 'UnknownTool' as const, name });
     }
@@ -137,6 +148,21 @@ export const dispatchTool = (
             toErrorResult('FIRESTORE_ERROR', err.message, {
               cause: String(err.cause),
             }),
+          );
+        case 'AuthGetUserError':
+        case 'AuthListUsersError':
+          return Effect.succeed(
+            toErrorResult('AUTH_ERROR', err.message, {
+              cause: String(err.cause),
+            }),
+          );
+        case 'AuthUserNotFoundError':
+          return Effect.succeed(
+            toErrorResult(
+              'NOT_FOUND',
+              `User not found: ${err.identifier}`,
+              { identifier: err.identifier },
+            ),
           );
         case 'UnknownTool':
           return Effect.succeed(

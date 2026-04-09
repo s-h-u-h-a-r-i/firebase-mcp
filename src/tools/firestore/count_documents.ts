@@ -1,5 +1,6 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Data, Effect } from 'effect';
+
 import { AccessService } from '../../access';
 import { FirebaseService } from '../../firebase';
 import { FILTER_SCHEMA_ITEM, QueryFilter } from './types';
