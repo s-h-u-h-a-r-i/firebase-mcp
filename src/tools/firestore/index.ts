@@ -1,3 +1,4 @@
+export * from './aggregate_collection';
 export * from './count_documents';
 export * from './get_collection_schema';
 export * from './get_document';

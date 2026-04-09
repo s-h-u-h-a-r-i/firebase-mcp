@@ -26,7 +26,7 @@
 
 ### Medium Priority
 
-- [ ] **`aggregate_collection`** — native `sum()` and `avg()` aggregations without fetching documents
+- [x] **`aggregate_collection`** — native `sum()` and `avg()` aggregations without fetching documents
 - [x] **`get_collection_schema`** — samples from both ends of collection, infers types (integer, float, string, boolean, timestamp, geopoint, reference, array, map), marks optional fields
 
 ### Future / Auth & Other Services

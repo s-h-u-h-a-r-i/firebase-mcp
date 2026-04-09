@@ -4,6 +4,7 @@ import { Effect } from 'effect';
 import * as FirestoreTool from './firestore';
 
 type ToolNames =
+  | typeof FirestoreTool.AGGREGATE_COLLECTION
   | typeof FirestoreTool.COUNT_DOCUMENTS
   | typeof FirestoreTool.GET_COLLECTION_SCHEMA
   | typeof FirestoreTool.GET_MANY_DOCUMENTS
@@ -16,6 +17,7 @@ type ToolNames =
   | typeof FirestoreTool.QUERY_COLLECTION_GROUP;
 
 export const allToolDefinitions: Tool[] = [
+  FirestoreTool.aggregateCollectionDefinition,
   FirestoreTool.listCollectionsDefinition,
   FirestoreTool.listDocumentsDefinition,
   FirestoreTool.listIndexesDefinition,
@@ -55,6 +57,10 @@ export const dispatchTool = (
 ) =>
   Effect.gen(function* () {
     switch (name) {
+      case FirestoreTool.AGGREGATE_COLLECTION:
+        return yield* FirestoreTool.aggregateCollection(
+          args as unknown as FirestoreTool.AggregateCollectionArgs,
+        );
       case FirestoreTool.COUNT_DOCUMENTS:
         return yield* FirestoreTool.countDocuments(
           args as unknown as FirestoreTool.CountDocumentsArgs,
@@ -116,6 +122,7 @@ export const dispatchTool = (
               path: err.path,
             }),
           );
+        case 'FirestoreAggregateError':
         case 'FirestoreReadError':
         case 'FirestoreGetError':
         case 'FirestoreQueryError':
