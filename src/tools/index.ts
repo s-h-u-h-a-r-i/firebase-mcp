@@ -7,7 +7,9 @@ import {
   GET_DOCUMENT,
   GetDocumentArgs,
   LIST_COLLECTIONS,
+  LIST_DOCUMENTS,
   ListCollectionsArgs,
+  ListDocumentsArgs,
   QUERY_COLLECTION,
   QueryCollectionArgs,
   READ_COLLECTION,
@@ -18,6 +20,8 @@ import {
   getDocumentDefinition,
   listCollections,
   listCollectionsDefinition,
+  listDocuments,
+  listDocumentsDefinition,
   queryCollection,
   queryCollectionDefinition,
   readCollection,
@@ -29,10 +33,12 @@ type ToolNames =
   | typeof READ_COLLECTION
   | typeof GET_DOCUMENT
   | typeof LIST_COLLECTIONS
+  | typeof LIST_DOCUMENTS
   | typeof QUERY_COLLECTION;
 
 export const allToolDefinitions: Tool[] = [
   listCollectionsDefinition,
+  listDocumentsDefinition,
   countDocumentsDefinition,
   readCollectionDefinition,
   getDocumentDefinition,
@@ -70,6 +76,8 @@ export const dispatchTool = (
         return yield* countDocuments(args as unknown as CountDocumentsArgs);
       case LIST_COLLECTIONS:
         return yield* listCollections(args as unknown as ListCollectionsArgs);
+      case LIST_DOCUMENTS:
+        return yield* listDocuments(args as unknown as ListDocumentsArgs);
       case READ_COLLECTION:
         return yield* readCollection(args as unknown as ReadCollectionArgs);
       case GET_DOCUMENT:
@@ -101,6 +109,7 @@ export const dispatchTool = (
         case 'FirestoreGetError':
         case 'FirestoreQueryError':
         case 'FirestoreListCollectionsError':
+        case 'FirestoreListDocumentsError':
         case 'FirestoreCountError':
           return Effect.succeed(
             toErrorResult('FIRESTORE_ERROR', err.message, {
