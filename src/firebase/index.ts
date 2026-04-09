@@ -1,5 +1,6 @@
 import { Data, Effect } from 'effect';
 import admin from 'firebase-admin';
+import type { Auth } from 'firebase-admin/auth';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ConfigService } from '../config';
@@ -42,8 +43,9 @@ export class FirebaseService extends Effect.Service<FirebaseService>()(
       });
 
       const db = admin.firestore();
+      const authClient: Auth = admin.auth();
 
-      return { firestore: () => db };
+      return { firestore: () => db, auth: (): Auth => authClient };
     }),
   },
 ) {}
