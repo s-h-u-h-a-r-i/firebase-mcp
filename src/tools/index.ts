@@ -3,18 +3,28 @@ import { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Effect } from 'effect';
 import {
   GET_DOCUMENT,
+  GetDocumentArgs,
+  QUERY_COLLECTION,
+  QueryCollectionArgs,
   READ_COLLECTION,
+  ReadCollectionArgs,
   getDocument,
   getDocumentDefinition,
+  queryCollection,
+  queryCollectionDefinition,
   readCollection,
   readCollectionDefinition,
 } from './firestore';
 
-type ToolNames = typeof READ_COLLECTION | typeof GET_DOCUMENT;
+type ToolNames =
+  | typeof READ_COLLECTION
+  | typeof GET_DOCUMENT
+  | typeof QUERY_COLLECTION;
 
 export const allToolDefinitions: Tool[] = [
   readCollectionDefinition,
   getDocumentDefinition,
+  queryCollectionDefinition,
 ];
 
 const toErrorResult = (
@@ -45,11 +55,11 @@ export const dispatchTool = (
   Effect.gen(function* () {
     switch (name) {
       case READ_COLLECTION:
-        return yield* readCollection(
-          args as { collection: string; limit?: number },
-        );
+        return yield* readCollection(args as unknown as ReadCollectionArgs);
       case GET_DOCUMENT:
-        return yield* getDocument(args as { path: string });
+        return yield* getDocument(args as unknown as GetDocumentArgs);
+      case QUERY_COLLECTION:
+        return yield* queryCollection(args as unknown as QueryCollectionArgs);
       default:
         return yield* Effect.fail({ _tag: 'UnknownTool' as const, name });
     }
@@ -73,6 +83,7 @@ export const dispatchTool = (
           );
         case 'FirestoreReadError':
         case 'FirestoreGetError':
+        case 'FirestoreQueryError':
           return Effect.succeed(
             toErrorResult('FIRESTORE_ERROR', err.message, {
               cause: String(err.cause),

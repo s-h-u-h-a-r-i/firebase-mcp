@@ -17,6 +17,11 @@ export class DocumentNotFoundError extends Data.TaggedError(
 
 export const GET_DOCUMENT = 'get_document' as const;
 
+export interface GetDocumentArgs {
+  path: string;
+  select?: string[];
+}
+
 export const getDocumentDefinition: Tool = {
   name: GET_DOCUMENT,
   description: 'Get a single Firestore document by path',
@@ -27,12 +32,18 @@ export const getDocumentDefinition: Tool = {
         type: 'string',
         description: "Full document path, e.g. 'users/123' ",
       },
+      select: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Optional list of field paths to return. Omit to return all fields.',
+      },
     },
     required: ['path'],
   },
 };
 
-export const getDocument = (input: { path: string }) =>
+export const getDocument = (input: GetDocumentArgs) =>
   Effect.gen(function* () {
     const access = yield* AccessService;
     yield* access.check(input.path);
@@ -49,7 +60,12 @@ export const getDocument = (input: { path: string }) =>
     });
 
     const snap = yield* Effect.tryPromise({
-      try: () => docRef.get(),
+      try: () =>
+        input.select?.length
+          ? firestore()
+              .getAll(docRef, { fieldMask: input.select })
+              .then((snaps) => snaps[0])
+          : docRef.get(),
       catch: (cause) =>
         new FirestoreGetError({
           message: `Failed to get document: ${input.path}`,

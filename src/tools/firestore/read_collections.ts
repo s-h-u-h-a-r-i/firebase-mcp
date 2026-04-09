@@ -12,6 +12,12 @@ export class FirestoreReadError extends Data.TaggedError('FirestoreReadError')<{
 
 export const READ_COLLECTION = 'read_collection' as const;
 
+export interface ReadCollectionArgs {
+  collection: string;
+  limit?: number;
+  select?: string[];
+}
+
 export const readCollectionDefinition: Tool = {
   name: READ_COLLECTION,
   description: 'Read documents from a Firestore collection',
@@ -26,12 +32,18 @@ export const readCollectionDefinition: Tool = {
         type: 'number',
         description: 'Max number of documents to return',
       },
+      select: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Optional list of field paths to return. Omit to return all fields.',
+      },
     },
     required: ['collection'],
   },
 };
 
-export const readCollection = (input: { collection: string; limit?: number }) =>
+export const readCollection = (input: ReadCollectionArgs) =>
   Effect.gen(function* () {
     const access = yield* AccessService;
     yield* access.check(input.collection);
@@ -43,7 +55,17 @@ export const readCollection = (input: { collection: string; limit?: number }) =>
     const limit = Math.min(input.limit ?? maxLimit, maxLimit);
 
     const snapshot = yield* Effect.tryPromise({
-      try: () => firestore().collection(input.collection).limit(limit).get(),
+      try: () => {
+        let query: FirebaseFirestore.Query = firestore().collection(
+          input.collection,
+        );
+
+        if (input.select?.length) {
+          query = query.select(...input.select);
+        }
+
+        return query.limit(limit).get();
+      },
       catch: (cause) =>
         new FirestoreReadError({
           message: `Failed to read collection: ${input.collection}`,
