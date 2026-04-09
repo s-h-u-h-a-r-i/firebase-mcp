@@ -15,8 +15,10 @@ export class DocumentNotFoundError extends Data.TaggedError(
   readonly path: string;
 }> {}
 
+export const GET_DOCUMENT = 'get_document' as const;
+
 export const getDocumentDefinition: Tool = {
-  name: 'get_document',
+  name: GET_DOCUMENT,
   description: 'Get a single Firestore document by path',
   inputSchema: {
     type: 'object',

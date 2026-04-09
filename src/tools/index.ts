@@ -2,11 +2,15 @@ import { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 
 import { Effect } from 'effect';
 import {
+  GET_DOCUMENT,
+  READ_COLLECTION,
   getDocument,
   getDocumentDefinition,
   readCollection,
   readCollectionDefinition,
 } from './firestore';
+
+type ToolNames = typeof READ_COLLECTION | typeof GET_DOCUMENT;
 
 export const allToolDefinitions: Tool[] = [
   readCollectionDefinition,
@@ -35,16 +39,16 @@ const toSuccessResult = (data: unknown): CallToolResult => ({
 });
 
 export const dispatchTool = (
-  name: 'read_collection' | 'get_document' | (string & {}),
+  name: ToolNames | (string & {}),
   args: Record<string, unknown>,
 ) =>
   Effect.gen(function* () {
     switch (name) {
-      case 'read_collection':
+      case READ_COLLECTION:
         return yield* readCollection(
           args as { collection: string; limit?: number },
         );
-      case 'get_document':
+      case GET_DOCUMENT:
         return yield* getDocument(args as { path: string });
       default:
         return yield* Effect.fail({ _tag: 'UnknownTool' as const, name });

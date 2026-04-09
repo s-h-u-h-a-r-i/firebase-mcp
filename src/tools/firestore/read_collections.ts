@@ -10,8 +10,10 @@ export class FirestoreReadError extends Data.TaggedError('FirestoreReadError')<{
   readonly cause?: unknown;
 }> {}
 
+export const READ_COLLECTION = 'read_collection' as const;
+
 export const readCollectionDefinition: Tool = {
-  name: 'read_collection',
+  name: READ_COLLECTION,
   description: 'Read documents from a Firestore collection',
   inputSchema: {
     type: 'object',
