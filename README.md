@@ -1,17 +1,21 @@
 # firebase-mcp
 
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that exposes Firebase Firestore to AI agents. Built with [Effect](https://effect.website) and the Firebase Admin SDK, it runs over stdio and is designed to be wired directly into any MCP-compatible host (Cursor, Claude Desktop, etc.).
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that exposes Firebase Firestore and Authentication to AI agents. Built with [Effect](https://effect.website) and the Firebase Admin SDK, it runs over stdio and is designed to be wired directly into any MCP-compatible host (Cursor, Claude Desktop, etc.).
 
 ## Features
 
 - **11 Firestore read tools** covering collections, documents, queries, aggregations, and schema inference
+- **2 Firebase Auth tools** — look up users by UID or email, list users with pagination
 - **Glob-based access control** — allow/deny rules evaluated per Firestore path before any read is performed
-- **Pagination** on `query_collection` and `read_collection` via cursor-based `startAfter` / `nextPageCursor`
+- **Pagination** on `query_collection`, `read_collection`, and `list_users` via cursor-based tokens
 - **Batch fetching** with configurable `maxBatchFetchSize`
 - **Schema inference** via `get_collection_schema` — samples documents and infers field types without reading the full collection
-- Zero runtime state — each tool call hits Firestore directly through the Admin SDK
+- **Normalized output** — Firestore Timestamps, GeoPoints, and DocumentReferences are converted to JSON-serializable values on all tools
+- Zero runtime state — each tool call hits Firebase directly through the Admin SDK
 
 ## Tools
+
+### Firestore
 
 | Tool                     | Description                                                                                                 |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------- |
@@ -27,11 +31,18 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 | `get_collection_schema`  | Sample a collection from both ends and infer field types.                                                   |
 | `list_indexes`           | List Firestore indexes for the project.                                                                     |
 
+### Auth
+
+| Tool         | Description                                                              |
+| ------------ | ------------------------------------------------------------------------ |
+| `get_user`   | Fetch a Firebase Auth user by UID or email.                              |
+| `list_users` | List Firebase Auth users with optional pagination via `nextPageToken`.   |
+
 ## Requirements
 
 - Node.js 18+
 - A Firebase project with Firestore enabled
-- A service account JSON key with Firestore read permissions
+- A service account JSON key with Firestore and Auth read permissions
 
 ## Setup
 

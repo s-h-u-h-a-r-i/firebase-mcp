@@ -31,6 +31,6 @@
 
 ### Future / Auth & Other Services
 
-- [ ] **`get_user`** — fetch a Firebase Auth user by UID or email
-- [ ] **`list_users`** — paginated user list
+- [x] **`get_user`** — fetch a Firebase Auth user by UID or email
+- [x] **`list_users`** — paginated user list
 - [ ] **Write tools** — `set_document`, `update_document`, `create_document`, `delete_document`, `batch_write`

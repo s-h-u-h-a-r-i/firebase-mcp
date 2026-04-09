@@ -29,3 +29,4 @@ Thumbs.db
 *.swp
 .cursor/hooks/state
 .cursor/mcp.json
+AGENTS.md
