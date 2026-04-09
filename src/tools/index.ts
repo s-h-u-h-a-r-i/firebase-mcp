@@ -6,6 +6,7 @@ import * as FirestoreTool from './firestore';
 type ToolNames =
   | typeof FirestoreTool.COUNT_DOCUMENTS
   | typeof FirestoreTool.GET_COLLECTION_SCHEMA
+  | typeof FirestoreTool.GET_MANY_DOCUMENTS
   | typeof FirestoreTool.READ_COLLECTION
   | typeof FirestoreTool.GET_DOCUMENT
   | typeof FirestoreTool.LIST_COLLECTIONS
@@ -19,6 +20,7 @@ export const allToolDefinitions: Tool[] = [
   FirestoreTool.countDocumentsDefinition,
   FirestoreTool.readCollectionDefinition,
   FirestoreTool.getDocumentDefinition,
+  FirestoreTool.getManyDocumentsDefinition,
   FirestoreTool.queryCollectionDefinition,
 ];
 
@@ -56,6 +58,10 @@ export const dispatchTool = (
       case FirestoreTool.GET_COLLECTION_SCHEMA:
         return yield* FirestoreTool.getCollectionSchema(
           args as unknown as FirestoreTool.GetCollectionSchemaArgs,
+        );
+      case FirestoreTool.GET_MANY_DOCUMENTS:
+        return yield* FirestoreTool.getManyDocuments(
+          args as unknown as FirestoreTool.GetManyDocumentsArgs,
         );
       case FirestoreTool.LIST_COLLECTIONS:
         return yield* FirestoreTool.listCollections(
@@ -105,6 +111,7 @@ export const dispatchTool = (
         case 'FirestoreListDocumentsError':
         case 'FirestoreCountError':
         case 'FirestoreSchemaError':
+        case 'FirestoreGetManyError':
           return Effect.succeed(
             toErrorResult('FIRESTORE_ERROR', err.message, {
               cause: String(err.cause),

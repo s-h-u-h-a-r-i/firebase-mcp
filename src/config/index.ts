@@ -20,7 +20,8 @@ const FirestoreRulesSchema = Schema.Struct({
 
 const FirestoreConfigSchema = Schema.Struct({
   rules: FirestoreRulesSchema,
-  maxLimit: Schema.optionalWith(Schema.Number, { default: () => 10 }),
+  maxCollectionReadSize: Schema.optionalWith(Schema.Number, { default: () => 10 }),
+  maxBatchFetchSize: Schema.optionalWith(Schema.Number, { default: () => 200 }),
 });
 
 const AppConfigSchema = Schema.Struct({

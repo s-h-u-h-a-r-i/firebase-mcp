@@ -63,7 +63,7 @@ export const readCollection = (input: ReadCollectionArgs) =>
     const { config } = yield* ConfigService;
     const { firestore } = yield* FirebaseService;
 
-    const maxLimit = config.firestore.maxLimit;
+    const maxLimit = config.firestore.maxCollectionReadSize;
     const limit = Math.min(input.limit ?? maxLimit, maxLimit);
 
     const cursorSnap = input.startAfter
