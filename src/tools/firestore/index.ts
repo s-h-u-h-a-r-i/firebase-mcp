@@ -4,6 +4,7 @@ export * from './get_document';
 export * from './get_many_documents';
 export * from './list_collections';
 export * from './list_documents';
+export * from './list_indexes';
 export * from './normalize';
 export * from './query_collection';
 export * from './read_collections';
