@@ -1,6 +1,7 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Data, Effect } from 'effect';
 import { FirebaseService } from '../../firebase';
+import { normalizeValue } from '../normalize';
 
 export class AuthListUsersError extends Data.TaggedError('AuthListUsersError')<{
   readonly message: string;
@@ -39,11 +40,22 @@ export const listUsers = (input: ListUsersArgs) =>
   Effect.gen(function* () {
     const { auth } = yield* FirebaseService;
 
-    // TODO: implement — call auth().listUsers(maxResults, pageToken)
-    void auth;
-    void input;
+    const result = yield* Effect.tryPromise({
+      try: () => auth().listUsers(input.maxResults ?? 100, input.pageToken),
+      catch: (cause) =>
+        new AuthListUsersError({
+          message: 'Failed to list users',
+          cause,
+        }),
+    });
 
-    return yield* Effect.fail(
-      new AuthListUsersError({ message: 'list_users: not yet implemented' }),
-    );
+    return {
+      users: result.users.map((u) =>
+        normalizeValue({
+          ...u.toJSON(),
+          providerData: u.providerData.map((p) => ({ ...p.toJSON() })),
+        }),
+      ),
+      nextPageToken: result.pageToken ?? null,
+    };
   });
