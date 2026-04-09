@@ -27,5 +27,3 @@ jobs:
       - run: npm pkg delete devDependencies
 
       - run: npm publish --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
