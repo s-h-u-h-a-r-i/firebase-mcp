@@ -24,6 +24,10 @@
     "cursor",
     "claude"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/s-h-u-h-a-r-i/firebase-mcp"
+  },
   "author": "triston.c.0186@gmail.com",
   "license": "MIT",
   "packageManager": "pnpm@10.33.0",
