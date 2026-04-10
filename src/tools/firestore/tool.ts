@@ -112,7 +112,7 @@ export const firestoreReadDefinition: Tool = {
           '- aggregate_collection: Server-side sum/avg/count aggregations. Args: collection(ODD segments), aggregations[]{alias,type,field?}, filters?[]',
           '- get_collection_schema: Infer field types by sampling docs. Args: collection(ODD segments), sampleSize?(default 20)',
           '- list_indexes: List composite indexes. Args: collectionGroup?(filter by name), includeNotReady?(bool)',
-          '- distinct_values: Count occurrences of each unique value of a field across a collection. Args: collection(ODD segments), field(field name), filters?[]. Fetches all matching docs internally (up to maxBatchFetchSize). Returns values[] sorted by count desc.',
+          '- distinct_values: Count occurrences of each unique value of a field. Args: collection(ODD segments) OR collectionId(single name — queries across ALL subcollections with that name, like query_collection_group), field(field name), filters?[]. Fetches all matching docs internally (up to maxBatchFetchSize). Returns values[] sorted by count desc. When using collectionId, also returns byCollection{} — counts broken down by each parent collection path, e.g. per-store breakdown.',
         ].join('\n'),
       },
       projectId: {
