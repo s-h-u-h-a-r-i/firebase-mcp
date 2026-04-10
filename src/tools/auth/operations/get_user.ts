@@ -1,8 +1,8 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-import type { ProjectContext } from '../../project';
-import { Task } from '../../task';
-import { normalizeValue } from '../normalize';
+import type { ProjectContext } from '../../../project';
+import { Task } from '../../../task';
+import { normalizeValue } from '../../normalize';
 
 export class AuthGetUserError extends Error {
   readonly _tag = 'AuthGetUserError' as const;

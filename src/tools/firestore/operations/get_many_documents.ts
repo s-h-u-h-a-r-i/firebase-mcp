@@ -1,9 +1,9 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-import type { ProjectContext } from '../../project';
-import { Task } from '../../task';
-import { collectionPathError, documentPathError } from './paths';
-import { normalizeDocument } from './types';
+import type { ProjectContext } from '../../../project';
+import { Task } from '../../../task';
+import { collectionPathError, documentPathError } from '../utils/paths';
+import { normalizeDocument } from '../utils/types';
 
 export class FirestoreGetManyError extends Error {
   readonly _tag = 'FirestoreGetManyError' as const;

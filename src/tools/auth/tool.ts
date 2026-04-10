@@ -2,8 +2,8 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 import type { ProjectContext } from '../../project';
 import { Task } from '../../task';
-import { GET_USER, getUser, GetUserArgs } from './get_user';
-import { LIST_USERS, listUsers, ListUsersArgs } from './list_users';
+import { GET_USER, getUser, GetUserArgs } from './operations/get_user';
+import { LIST_USERS, listUsers, ListUsersArgs } from './operations/list_users';
 
 const READ_OPERATIONS = [GET_USER, LIST_USERS] as const;
 

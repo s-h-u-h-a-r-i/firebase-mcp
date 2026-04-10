@@ -6,50 +6,50 @@ import {
   AGGREGATE_COLLECTION,
   aggregateCollection,
   AggregateCollectionArgs,
-} from './aggregate_collection';
+} from './operations/aggregate_collection';
 import {
   COUNT_DOCUMENTS,
   countDocuments,
   CountDocumentsArgs,
-} from './count_documents';
+} from './operations/count_documents';
 import {
   GET_COLLECTION_SCHEMA,
   getCollectionSchema,
   GetCollectionSchemaArgs,
-} from './get_collection_schema';
-import { GET_DOCUMENT, getDocument, GetDocumentArgs } from './get_document';
+} from './operations/get_collection_schema';
+import { GET_DOCUMENT, getDocument, GetDocumentArgs } from './operations/get_document';
 import {
   GET_MANY_DOCUMENTS,
   getManyDocuments,
   GetManyDocumentsArgs,
-} from './get_many_documents';
+} from './operations/get_many_documents';
 import {
   LIST_COLLECTIONS,
   listCollections,
   ListCollectionsArgs,
-} from './list_collections';
+} from './operations/list_collections';
 import {
   LIST_DOCUMENTS,
   listDocuments,
   ListDocumentsArgs,
-} from './list_documents';
-import { LIST_INDEXES, listIndexes, ListIndexesArgs } from './list_indexes';
+} from './operations/list_documents';
+import { LIST_INDEXES, listIndexes, ListIndexesArgs } from './operations/list_indexes';
 import {
   QUERY_COLLECTION,
   queryCollection,
   QueryCollectionArgs,
-} from './query_collection';
+} from './operations/query_collection';
 import {
   QUERY_COLLECTION_GROUP,
   queryCollectionGroup,
   QueryCollectionGroupArgs,
-} from './query_collection_group';
+} from './operations/query_collection_group';
 import {
   READ_COLLECTION,
   readCollection,
   ReadCollectionArgs,
-} from './read_collections';
-import { FILTER_SCHEMA_ITEM, ORDER_BY_SCHEMA_ITEM } from './types';
+} from './operations/read_collections';
+import { FILTER_SCHEMA_ITEM, ORDER_BY_SCHEMA_ITEM } from './utils/types';
 
 const READ_OPERATIONS = [
   LIST_COLLECTIONS,

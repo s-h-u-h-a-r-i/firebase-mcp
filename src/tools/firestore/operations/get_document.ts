@@ -1,9 +1,9 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-import type { ProjectContext } from '../../project';
-import { Task } from '../../task';
-import { documentPathError } from './paths';
-import { normalizeDocument } from './types';
+import type { ProjectContext } from '../../../project';
+import { Task } from '../../../task';
+import { documentPathError } from '../utils/paths';
+import { normalizeDocument } from '../utils/types';
 
 export class FirestoreGetError extends Error {
   readonly _tag = 'FirestoreGetError' as const;

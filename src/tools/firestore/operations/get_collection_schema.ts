@@ -1,9 +1,9 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import admin from 'firebase-admin';
 
-import type { ProjectContext } from '../../project';
-import { Task } from '../../task';
-import { collectionPathError } from './paths';
+import type { ProjectContext } from '../../../project';
+import { Task } from '../../../task';
+import { collectionPathError } from '../utils/paths';
 
 export class FirestoreSchemaError extends Error {
   readonly _tag = 'FirestoreSchemaError' as const;

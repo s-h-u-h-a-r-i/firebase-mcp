@@ -1,10 +1,10 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { AggregateField } from 'firebase-admin/firestore';
 
-import type { ProjectContext } from '../../project';
-import { Task } from '../../task';
-import { collectionPathError } from './paths';
-import { FILTER_SCHEMA_ITEM, QueryFilter } from './types';
+import type { ProjectContext } from '../../../project';
+import { Task } from '../../../task';
+import { collectionPathError } from '../utils/paths';
+import { FILTER_SCHEMA_ITEM, QueryFilter } from '../utils/types';
 
 export class FirestoreAggregateError extends Error {
   readonly _tag = 'FirestoreAggregateError' as const;

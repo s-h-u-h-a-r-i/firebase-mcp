@@ -1,8 +1,8 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-import type { ProjectContext } from '../../project';
-import { Task } from '../../task';
-import { collectionPathError } from './paths';
+import type { ProjectContext } from '../../../project';
+import { Task } from '../../../task';
+import { collectionPathError } from '../utils/paths';
 
 export class FirestoreListDocumentsError extends Error {
   readonly _tag = 'FirestoreListDocumentsError' as const;

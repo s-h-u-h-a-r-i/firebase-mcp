@@ -5,7 +5,7 @@ import {
   WhereFilterOp,
 } from 'firebase-admin/firestore';
 
-import { normalizeValue } from '../normalize';
+import { normalizeValue } from '../../normalize';
 
 export const VALID_OPERATORS: WhereFilterOp[] = [
   '<',

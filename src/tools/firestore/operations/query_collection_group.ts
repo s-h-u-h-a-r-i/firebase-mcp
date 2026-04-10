@@ -1,14 +1,14 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-import type { ProjectContext } from '../../project';
-import { Task } from '../../task';
+import type { ProjectContext } from '../../../project';
+import { Task } from '../../../task';
 import {
   FILTER_SCHEMA_ITEM,
   normalizeDocument,
   ORDER_BY_SCHEMA_ITEM,
   QueryFilter,
   QueryOrderBy,
-} from './types';
+} from '../utils/types';
 
 export class FirestoreCollectionGroupQueryError extends Error {
   readonly _tag = 'FirestoreCollectionGroupQueryError' as const;

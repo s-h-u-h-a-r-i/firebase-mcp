@@ -1,15 +1,15 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-import type { ProjectContext } from '../../project';
-import { Task } from '../../task';
-import { collectionPathError } from './paths';
+import type { ProjectContext } from '../../../project';
+import { Task } from '../../../task';
+import { collectionPathError } from '../utils/paths';
 import {
   FILTER_SCHEMA_ITEM,
   normalizeDocument,
   ORDER_BY_SCHEMA_ITEM,
   QueryFilter,
   QueryOrderBy,
-} from './types';
+} from '../utils/types';
 
 export class FirestoreQueryError extends Error {
   readonly _tag = 'FirestoreQueryError' as const;

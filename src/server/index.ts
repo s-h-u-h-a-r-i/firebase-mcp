@@ -68,82 +68,72 @@ export class FirebaseMcpServer {
 
     this.mcpServer.server.setRequestHandler(
       CallToolRequestSchema,
-      async (request) => {
-        const name = request.params.name;
-        const args = request.params.arguments ?? {};
-
-        if (name === GET_CONFIG) {
-          return getConfig(this.appConfig);
-        }
-
-        if (name === RELOAD_CONFIG) {
-          return reloadConfig(async () => {
-            const { exit: cfgExit } = loadConfig(this.configPath).fork();
-            const cfgResult = await cfgExit;
-            if (cfgResult._tag !== 'ok') {
-              throw cfgResult._tag === 'err'
-                ? cfgResult.error
-                : cfgResult.cause;
-            }
-            this.projectContexts.clear();
-            this.appConfig = cfgResult.value;
-            return { projects: Object.keys(cfgResult.value.projects) };
-          });
-        }
-
-        const projectId =
-          typeof args.projectId === 'string' ? args.projectId : null;
-
-        if (!projectId) {
-          return toErrorResult(
-            'MISSING_PROJECT_ID',
-            'projectId is required. Call get_config to see available projects.',
-          );
-        }
-
-        const projectConfig = this.appConfig.projects[projectId];
-        if (!projectConfig) {
-          return toErrorResult(
-            'PROJECT_NOT_FOUND',
-            `Project "${projectId}" not found in config. Call get_config to see available projects.`,
-            { projectId, available: Object.keys(this.appConfig.projects) },
-          );
-        }
-
-        const { projectId: _stripped, ...toolArgs } = args as Record<
-          string,
-          unknown
-        >;
-
-        let ctx: ProjectContext;
-        try {
-          ctx = await this.getOrInitProject(projectId, projectConfig);
-        } catch (cause) {
-          return toErrorResult(
-            'FIREBASE_INIT_ERROR',
-            `Failed to initialize Firebase for project "${projectId}": ${String(cause)}`,
-          );
-        }
-
-        const { exit: toolExit } = dispatchTool(
-          ctx,
-          name,
-          toolArgs as Record<string, unknown> & { operation: string },
-        ).fork();
-        const toolResult = await toolExit;
-
-        if (toolResult._tag === 'ok') return toolResult.value;
-
-        return toErrorResult(
-          'INTERNAL_ERROR',
-          `Unexpected error: ${String(
-            toolResult._tag === 'err' ? toolResult.error : toolResult.cause,
-          )}`,
-        );
-      },
+      (request) => this.handleToolCall(request.params.name, request.params.arguments ?? {}),
     );
 
     await this.mcpServer.server.connect(new StdioServerTransport());
+  }
+
+  private async handleToolCall(name: string, args: Record<string, unknown>) {
+    if (name === GET_CONFIG) return getConfig(this.appConfig);
+
+    if (name === RELOAD_CONFIG) return reloadConfig(() => this.reloadAppConfig());
+
+    const projectId = typeof args.projectId === 'string' ? args.projectId : null;
+    if (!projectId) {
+      return toErrorResult(
+        'MISSING_PROJECT_ID',
+        'projectId is required. Call get_config to see available projects.',
+      );
+    }
+
+    const projectConfig = this.appConfig.projects[projectId];
+    if (!projectConfig) {
+      return toErrorResult(
+        'PROJECT_NOT_FOUND',
+        `Project "${projectId}" not found in config. Call get_config to see available projects.`,
+        { projectId, available: Object.keys(this.appConfig.projects) },
+      );
+    }
+
+    const { projectId: _stripped, ...toolArgs } = args;
+
+    let ctx: ProjectContext;
+    try {
+      ctx = await this.getOrInitProject(projectId, projectConfig);
+    } catch (cause) {
+      return toErrorResult(
+        'FIREBASE_INIT_ERROR',
+        `Failed to initialize Firebase for project "${projectId}": ${String(cause)}`,
+      );
+    }
+
+    const { exit } = dispatchTool(
+      ctx,
+      name,
+      toolArgs as Record<string, unknown> & { operation: string },
+    ).fork();
+    const toolResult = await exit;
+
+    if (toolResult._tag === 'ok') return toolResult.value;
+
+    return toErrorResult(
+      'INTERNAL_ERROR',
+      `Unexpected error: ${String(
+        toolResult._tag === 'err' ? toolResult.error : toolResult.cause,
+      )}`,
+    );
+  }
+
+  private async reloadAppConfig() {
+    const { exit } = loadConfig(this.configPath).fork();
+    const result = await exit;
+    if (result._tag !== 'ok') {
+      throw result._tag === 'err' ? result.error : result.cause;
+    }
+    this.projectContexts.clear();
+    this.appConfig = result.value;
+    return { projects: Object.keys(result.value.projects) };
   }
 
   private getOrInitProject(

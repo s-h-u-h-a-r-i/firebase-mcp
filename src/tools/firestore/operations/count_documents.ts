@@ -1,9 +1,9 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
-import type { ProjectContext } from '../../project';
-import { Task } from '../../task';
-import { collectionPathError } from './paths';
-import { FILTER_SCHEMA_ITEM, QueryFilter } from './types';
+import type { ProjectContext } from '../../../project';
+import { Task } from '../../../task';
+import { collectionPathError } from '../utils/paths';
+import { FILTER_SCHEMA_ITEM, QueryFilter } from '../utils/types';
 
 export class FirestoreCountError extends Error {
   readonly _tag = 'FirestoreCountError' as const;

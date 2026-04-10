@@ -1,8 +1,8 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import admin from 'firebase-admin';
 
-import type { ProjectContext } from '../../project';
-import { Task } from '../../task';
+import type { ProjectContext } from '../../../project';
+import { Task } from '../../../task';
 
 export class FirestoreListIndexesError extends Error {
   readonly _tag = 'FirestoreListIndexesError' as const;
