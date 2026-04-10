@@ -125,7 +125,11 @@ export class FirebaseMcpServer {
           );
         }
 
-        const { exit: toolExit } = dispatchTool(ctx, name, toolArgs).fork();
+        const { exit: toolExit } = dispatchTool(
+          ctx,
+          name,
+          toolArgs as Record<string, unknown> & { operation: string },
+        ).fork();
         const toolResult = await toolExit;
 
         if (toolResult._tag === 'ok') return toolResult.value;

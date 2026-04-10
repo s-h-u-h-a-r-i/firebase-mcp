@@ -6,7 +6,10 @@ import { Task } from '../../task';
 
 export class FirestoreSchemaError extends Error {
   readonly _tag = 'FirestoreSchemaError' as const;
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'FirestoreSchemaError';
   }
@@ -19,7 +22,7 @@ export interface GetCollectionSchemaArgs {
   sampleSize?: number;
 }
 
-interface FieldSchema {
+export interface FieldSchema {
   types: string[];
   coverage: string;
 }
