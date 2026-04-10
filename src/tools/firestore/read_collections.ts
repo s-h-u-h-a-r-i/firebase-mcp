@@ -2,6 +2,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 import type { ProjectContext } from '../../project';
 import { Task } from '../../task';
+import { collectionPathError } from './paths';
 import { normalizeDocument } from './types';
 
 export class FirestoreReadError extends Error {
@@ -63,6 +64,10 @@ export const readCollectionDefinition: Tool = {
 
 export const readCollection = (ctx: ProjectContext, input: ReadCollectionArgs) =>
   Task.gen(function* () {
+    const err = collectionPathError(input.collection);
+    if (err) {
+      return yield* Task.fail(new FirestoreReadError(err));
+    }
     yield* ctx.checkAccess(input.collection);
 
     const db = ctx.firestore();

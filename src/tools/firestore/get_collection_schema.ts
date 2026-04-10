@@ -3,6 +3,7 @@ import admin from 'firebase-admin';
 
 import type { ProjectContext } from '../../project';
 import { Task } from '../../task';
+import { collectionPathError } from './paths';
 
 export class FirestoreSchemaError extends Error {
   readonly _tag = 'FirestoreSchemaError' as const;
@@ -77,6 +78,10 @@ export const getCollectionSchema = (
   input: GetCollectionSchemaArgs,
 ) =>
   Task.gen(function* () {
+    const err = collectionPathError(input.collection);
+    if (err) {
+      return yield* Task.fail(new FirestoreSchemaError(err));
+    }
     yield* ctx.checkAccess(input.collection);
 
     const db = ctx.firestore();

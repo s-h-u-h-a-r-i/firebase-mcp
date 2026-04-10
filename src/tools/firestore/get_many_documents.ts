@@ -2,6 +2,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 import type { ProjectContext } from '../../project';
 import { Task } from '../../task';
+import { collectionPathError, documentPathError } from './paths';
 import { normalizeDocument } from './types';
 
 export class FirestoreGetManyError extends Error {
@@ -71,8 +72,18 @@ export const getManyDocuments = (
     let allPaths: string[] = [];
 
     if (input.paths?.length) {
+      for (const p of input.paths) {
+        const err = documentPathError(p);
+        if (err) {
+          return yield* Task.fail(new FirestoreGetManyError(err));
+        }
+      }
       allPaths = input.paths;
     } else if (input.collection && input.ids?.length) {
+      const collErr = collectionPathError(input.collection);
+      if (collErr) {
+        return yield* Task.fail(new FirestoreGetManyError(collErr));
+      }
       allPaths = input.ids.map((id) => `${input.collection}/${id}`);
     } else {
       return yield* Task.fail(
