@@ -83,6 +83,25 @@ export class UnknownFirestoreOperationError extends Error {
 
 export const FIRESTORE_READ = 'firestore_read' as const;
 
+const DISTINCT_VALUES_DESCRIPTION = [
+  '- distinct_values: Count occurrences of each unique value (or value combination) of one or more fields.',
+  '  Source: collection(ODD segments) OR collectionId(single name — queries across ALL subcollections with that name, like query_collection_group).',
+  '  Fields: field(single field name) OR fields([array of field names] — each result value becomes an object keyed by field name).',
+  '  groupByFields?([subset of fields] — use only these as the identity/grouping key;',
+  '    remaining fields become label arrays of unique values seen per group,',
+  '    e.g. groupByFields:["cashier"] with fields:["cashier","cashierNm"] groups by cashier ID',
+  '    while collecting all cashierNm variants as a label — useful when a display name varies across collections but the ID is stable).',
+  '  filters?[].',
+  '  groupByPathSegment?(integer — when using collectionId, extracts this segment from the parent collection path as the byCollection key,',
+  '    e.g. 2 turns "shared/stores_data/ABC123/data/purchase_orders" into "ABC123").',
+  '  minCollections?(integer or "all" — only return values present in at least this many distinct collection buckets;',
+  '    "all" means present in every bucket found without knowing the count upfront;',
+  '    operates on the groupByFields key so label variation across buckets does not cause missed matches;',
+  '    all values are annotated with collectionCount and collections[] regardless).',
+  '  Fetches all matching docs internally (up to maxBatchFetchSize).',
+  '  Returns values[] sorted by count desc. When using collectionId, also returns byCollection{} broken down by parent collection (or extracted segment).',
+].join(' ');
+
 export const firestoreReadDefinition: Tool = {
   name: FIRESTORE_READ,
   description:
@@ -112,7 +131,7 @@ export const firestoreReadDefinition: Tool = {
           '- aggregate_collection: Server-side sum/avg/count aggregations. Args: collection(ODD segments), aggregations[]{alias,type,field?}, filters?[]',
           '- get_collection_schema: Infer field types by sampling docs. Args: collection(ODD segments), sampleSize?(default 20)',
           '- list_indexes: List composite indexes. Args: collectionGroup?(filter by name), includeNotReady?(bool)',
-          '- distinct_values: Count occurrences of each unique value of a field. Args: collection(ODD segments) OR collectionId(single name — queries across ALL subcollections with that name, like query_collection_group), field(field name), filters?[], groupByPathSegment?(integer index — when using collectionId, extracts this segment from the parent collection path as the byCollection key, e.g. 2 turns "shared/stores_data/ABC123/data/purchase_orders" into "ABC123"). Fetches all matching docs internally (up to maxBatchFetchSize). Returns values[] sorted by count desc. When using collectionId, also returns byCollection{} broken down by parent collection path (or extracted segment if groupByPathSegment is set).',
+          DISTINCT_VALUES_DESCRIPTION,
         ].join('\n'),
       },
       projectId: {
@@ -222,12 +241,27 @@ export const firestoreReadDefinition: Tool = {
       },
       field: {
         type: 'string',
-        description: 'distinct_values: field name to count unique values for',
+        description: 'distinct_values: single field name to count unique values for. Use fields[] for multi-field grouping.',
+      },
+      fields: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'distinct_values: multiple field names to fetch. Each result value is an object keyed by field name. Use groupByFields to group on a subset.',
+      },
+      groupByFields: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'distinct_values: subset of fields[] to use as the grouping/identity key. Remaining fields are collected as label arrays (unique values seen per group). Allows minCollections to operate on a stable ID field even when a display name varies across collections.',
       },
       groupByPathSegment: {
         type: 'number',
         description:
           'distinct_values with collectionId: 0-based index of the path segment to use as the byCollection key instead of the full path (e.g. 2 extracts "ABC123" from "shared/stores_data/ABC123/data/purchase_orders")',
+      },
+      minCollections: {
+        type: ['number', 'string'],
+        description:
+          'distinct_values with collectionId: only return values that appear in at least this many distinct collection buckets. Pass a number (e.g. 2) or "all" to mean "present in every collection bucket found" — useful for "users in every store" without needing to know the store count upfront. All returned values are annotated with collectionCount and collections[] regardless.',
       },
     },
   },
