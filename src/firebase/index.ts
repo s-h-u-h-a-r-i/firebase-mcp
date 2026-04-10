@@ -15,9 +15,10 @@ export class FirebaseService extends Effect.Service<FirebaseService>()(
   {
     accessors: true,
     effect: Effect.gen(function* () {
-      const config = yield* ConfigService.config;
+      const { config } = yield* ConfigService;
 
       const serviceAccountPath = resolve(config.firebase.serviceAccountPath);
+      const appName = config.firebase.projectId;
 
       const serviceAccount = yield* Effect.try({
         try: () =>
@@ -33,17 +34,24 @@ export class FirebaseService extends Effect.Service<FirebaseService>()(
 
       yield* Effect.try({
         try: () => {
-          admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            projectId: config.firebase.projectId,
-          });
+          const existing = admin.apps.find((a) => a?.name === appName);
+          if (!existing) {
+            admin.initializeApp(
+              {
+                credential: admin.credential.cert(serviceAccount),
+                projectId: appName,
+              },
+              appName,
+            );
+          }
         },
         catch: (cause) =>
           new FirebaseInitError({ message: `Firebase init failed`, cause }),
       });
 
-      const db = admin.firestore();
-      const authClient: Auth = admin.auth();
+      const app = admin.app(appName);
+      const db = app.firestore();
+      const authClient: Auth = app.auth();
 
       return { firestore: () => db, auth: (): Auth => authClient };
     }),

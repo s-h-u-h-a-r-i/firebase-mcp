@@ -51,8 +51,12 @@ export const readCollectionDefinition: Tool = {
         description:
           'Document ID to start after for pagination. Use the nextPageCursor value returned from a previous call.',
       },
+      projectId: {
+        type: 'string',
+        description: 'Project key as defined in firebase-mcp.json',
+      },
     },
-    required: ['collection'],
+    required: ['collection', 'projectId'],
   },
 };
 

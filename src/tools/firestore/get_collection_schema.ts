@@ -60,8 +60,12 @@ export const getCollectionSchemaDefinition: Tool = {
         description:
           'Total number of documents to sample (default: 20). Split evenly between the start and end of the collection for varied coverage.',
       },
+      projectId: {
+        type: 'string',
+        description: 'Project key as defined in firebase-mcp.json',
+      },
     },
-    required: ['collection'],
+    required: ['collection', 'projectId'],
   },
 };
 

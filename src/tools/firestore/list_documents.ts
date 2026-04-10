@@ -35,8 +35,12 @@ export const listDocumentsDefinition: Tool = {
         description:
           'If true, also lists the subcollections of each document alongside its ID. Useful when exploring unknown structure to avoid a follow-up list_collections call per document.',
       },
+      projectId: {
+        type: 'string',
+        description: 'Project key as defined in firebase-mcp.json',
+      },
     },
-    required: ['collection'],
+    required: ['collection', 'projectId'],
   },
 };
 

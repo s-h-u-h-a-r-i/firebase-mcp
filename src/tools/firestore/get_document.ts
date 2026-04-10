@@ -39,8 +39,12 @@ export const getDocumentDefinition: Tool = {
         description:
           'Optional list of field paths to return. Omit to return all fields.',
       },
+      projectId: {
+        type: 'string',
+        description: 'Project key as defined in firebase-mcp.json',
+      },
     },
-    required: ['path'],
+    required: ['path', 'projectId'],
   },
 };
 

@@ -53,7 +53,12 @@ export const listIndexesDefinition: Tool = {
         description:
           'If true, includes indexes that are still CREATING or NEEDS_REPAIR. Defaults to false (only READY indexes).',
       },
+      projectId: {
+        type: 'string',
+        description: 'Project key as defined in firebase-mcp.json',
+      },
     },
+    required: ['projectId'],
   },
 };
 
@@ -63,7 +68,7 @@ export const listIndexes = (input: ListIndexesArgs) =>
     const projectId = config.firebase.projectId;
 
     const token = yield* Effect.tryPromise({
-      try: () => admin.app().options.credential!.getAccessToken(),
+      try: () => admin.app(projectId).options.credential!.getAccessToken(),
       catch: (cause) =>
         new FirestoreListIndexesError({
           message: 'Failed to get access token',

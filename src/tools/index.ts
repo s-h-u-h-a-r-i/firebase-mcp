@@ -2,7 +2,10 @@ import { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { Effect } from 'effect';
 
 import * as AuthTool from './auth';
+import * as ConfigTool from './config';
 import * as FirestoreTool from './firestore';
+
+export { GET_CONFIG, RELOAD_CONFIG, getConfig, reloadConfig } from './config';
 
 type ToolNames =
   | typeof FirestoreTool.AGGREGATE_COLLECTION
@@ -20,6 +23,8 @@ type ToolNames =
   | typeof AuthTool.LIST_USERS;
 
 export const allToolDefinitions: Tool[] = [
+  ConfigTool.getConfigDefinition,
+  ConfigTool.reloadConfigDefinition,
   FirestoreTool.aggregateCollectionDefinition,
   FirestoreTool.listCollectionsDefinition,
   FirestoreTool.listDocumentsDefinition,
