@@ -11,7 +11,6 @@ const program = Effect.gen(function* () {
   yield* Effect.sync(() =>
     process.stderr.write('[firebase-mcp] Server running on stdio\n'),
   );
-  yield* Effect.never;
 }).pipe(Effect.provide(McpServerService.Default));
 
 NodeRuntime.runMain(program);

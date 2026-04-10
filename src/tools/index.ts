@@ -5,7 +5,7 @@ import * as AuthTool from './auth';
 import * as ConfigTool from './config';
 import * as FirestoreTool from './firestore';
 
-export { GET_CONFIG, RELOAD_CONFIG, getConfig, reloadConfig } from './config';
+export { GET_CONFIG, getConfig, RELOAD_CONFIG, reloadConfig } from './config';
 
 type ToolNames =
   | typeof FirestoreTool.AGGREGATE_COLLECTION
@@ -163,11 +163,9 @@ export const dispatchTool = (
           );
         case 'AuthUserNotFoundError':
           return Effect.succeed(
-            toErrorResult(
-              'NOT_FOUND',
-              `User not found: ${err.identifier}`,
-              { identifier: err.identifier },
-            ),
+            toErrorResult('NOT_FOUND', `User not found: ${err.identifier}`, {
+              identifier: err.identifier,
+            }),
           );
         case 'UnknownTool':
           return Effect.succeed(
