@@ -90,6 +90,7 @@ export const dispatchTool = (
         case 'FirestoreGetManyError':
         case 'FirestoreListIndexesError':
         case 'FirestoreCollectionGroupQueryError':
+        case 'FirestoreDistinctValuesError':
           return Task.succeed(
             toErrorResult('FIRESTORE_ERROR', err.message, {
               cause: String(err.cause),

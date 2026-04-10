@@ -8,6 +8,11 @@ import {
   AggregateCollectionArgs,
 } from './operations/aggregate_collection';
 import {
+  DISTINCT_VALUES,
+  distinctValues,
+  DistinctValuesArgs,
+} from './operations/distinct_values';
+import {
   COUNT_DOCUMENTS,
   countDocuments,
   CountDocumentsArgs,
@@ -63,6 +68,7 @@ const READ_OPERATIONS = [
   AGGREGATE_COLLECTION,
   GET_COLLECTION_SCHEMA,
   LIST_INDEXES,
+  DISTINCT_VALUES,
 ] as const;
 
 type ReadOperations = (typeof READ_OPERATIONS)[number];
@@ -106,6 +112,7 @@ export const firestoreReadDefinition: Tool = {
           '- aggregate_collection: Server-side sum/avg/count aggregations. Args: collection(ODD segments), aggregations[]{alias,type,field?}, filters?[]',
           '- get_collection_schema: Infer field types by sampling docs. Args: collection(ODD segments), sampleSize?(default 20)',
           '- list_indexes: List composite indexes. Args: collectionGroup?(filter by name), includeNotReady?(bool)',
+          '- distinct_values: Count occurrences of each unique value of a field across a collection. Args: collection(ODD segments), field(field name), filters?[]. Fetches all matching docs internally (up to maxBatchFetchSize). Returns values[] sorted by count desc.',
         ].join('\n'),
       },
       projectId: {
@@ -213,6 +220,10 @@ export const firestoreReadDefinition: Tool = {
         description:
           'list_indexes: filter results to a specific collection group name',
       },
+      field: {
+        type: 'string',
+        description: 'distinct_values: field name to count unique values for',
+      },
     },
   },
 };
@@ -247,6 +258,8 @@ export const dispatchFirestoreRead = (
         return yield* getCollectionSchema(ctx, a as GetCollectionSchemaArgs);
       case LIST_INDEXES:
         return yield* listIndexes(ctx, a as ListIndexesArgs);
+      case DISTINCT_VALUES:
+        return yield* distinctValues(ctx, a as DistinctValuesArgs);
       default:
         return yield* Task.fail(
           new UnknownFirestoreOperationError(String(operation)),

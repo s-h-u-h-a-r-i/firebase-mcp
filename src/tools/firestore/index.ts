@@ -1,4 +1,5 @@
 export * from './operations/aggregate_collection';
+export * from './operations/distinct_values';
 export * from './operations/count_documents';
 export * from './operations/get_collection_schema';
 export * from './operations/get_document';

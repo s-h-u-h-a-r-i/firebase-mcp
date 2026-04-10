@@ -25,7 +25,7 @@ const FirestoreRulesSchema = z.object({
 
 const FirestoreConfigSchema = z.object({
   rules: FirestoreRulesSchema,
-  maxCollectionReadSize: z.number().default(10),
+  maxCollectionReadSize: z.number().default(100),
   maxBatchFetchSize: z.number().default(200),
 });
 
