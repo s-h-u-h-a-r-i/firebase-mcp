@@ -35,7 +35,12 @@ export const listCollectionsDefinition: Tool = {
         description:
           'If true, includes the document count for each collection. Useful for quickly understanding the scale of each collection without separate count_documents calls.',
       },
+      projectId: {
+        type: 'string',
+        description: 'Project key as defined in firebase-mcp.json',
+      },
     },
+    required: ['projectId'],
   },
 };
 

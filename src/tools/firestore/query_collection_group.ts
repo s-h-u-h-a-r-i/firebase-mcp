@@ -68,8 +68,12 @@ export const queryCollectionGroupDefinition: Tool = {
         description:
           'Full document path to start after for pagination, e.g. "shared/stores_data/ABC/data/purchase_orders/51721". Use the path from the last document in the previous page.',
       },
+      projectId: {
+        type: 'string',
+        description: 'Project key as defined in firebase-mcp.json',
+      },
     },
-    required: ['collectionId'],
+    required: ['collectionId', 'projectId'],
   },
 };
 

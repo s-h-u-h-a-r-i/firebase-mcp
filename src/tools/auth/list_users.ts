@@ -32,7 +32,12 @@ export const listUsersDefinition: Tool = {
         description:
           'Page token from a previous list_users response to fetch the next page.',
       },
+      projectId: {
+        type: 'string',
+        description: 'Project key as defined in firebase-mcp.json',
+      },
     },
+    required: ['projectId'],
   },
 };
 

@@ -37,7 +37,12 @@ export const getUserDefinition: Tool = {
         type: 'string',
         description: 'The email address of the user.',
       },
+      projectId: {
+        type: 'string',
+        description: 'Project key as defined in firebase-mcp.json',
+      },
     },
+    required: ['projectId'],
   },
 };
 

@@ -35,8 +35,12 @@ export const countDocumentsDefinition: Tool = {
         description: 'Optional where-clause filters to narrow the count',
         items: FILTER_SCHEMA_ITEM,
       },
+      projectId: {
+        type: 'string',
+        description: 'Project key as defined in firebase-mcp.json',
+      },
     },
-    required: ['collection'],
+    required: ['collection', 'projectId'],
   },
 };
 
