@@ -1,9 +1,7 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 
-import { AccessService } from '../../access';
-import { ConfigService } from '../../config';
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 import {
   FILTER_SCHEMA_ITEM,
   normalizeDocument,
@@ -12,12 +10,13 @@ import {
   QueryOrderBy,
 } from './types';
 
-export class FirestoreCollectionGroupQueryError extends Data.TaggedError(
-  'FirestoreCollectionGroupQueryError',
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreCollectionGroupQueryError extends Error {
+  readonly _tag = 'FirestoreCollectionGroupQueryError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreCollectionGroupQueryError';
+  }
+}
 
 export const QUERY_COLLECTION_GROUP = 'query_collection_group' as const;
 
@@ -77,32 +76,32 @@ export const queryCollectionGroupDefinition: Tool = {
   },
 };
 
-export const queryCollectionGroup = (input: QueryCollectionGroupArgs) =>
-  Effect.gen(function* () {
-    const access = yield* AccessService;
-    yield* access.check(input.collectionId);
+export const queryCollectionGroup = (
+  ctx: ProjectContext,
+  input: QueryCollectionGroupArgs,
+) =>
+  Task.gen(function* () {
+    yield* ctx.checkAccess(input.collectionId);
 
-    const { config } = yield* ConfigService;
-    const { firestore } = yield* FirebaseService;
-
-    const maxLimit = config.firestore.maxCollectionReadSize;
+    const db = ctx.firestore();
+    const maxLimit = ctx.config.firestore.maxCollectionReadSize;
     const limit = Math.min(input.limit ?? maxLimit, maxLimit);
 
     // For collection group pagination, startAfter must be a full path
     const cursorSnap = input.startAfter
-      ? yield* Effect.tryPromise({
-          try: () => firestore().doc(input.startAfter!).get(),
+      ? yield* Task.attempt({
+          try: () => db.doc(input.startAfter!).get(),
           catch: (cause) =>
-            new FirestoreCollectionGroupQueryError({
-              message: `Failed to fetch cursor document: ${input.startAfter}`,
+            new FirestoreCollectionGroupQueryError(
+              `Failed to fetch cursor document: ${input.startAfter}`,
               cause,
-            }),
+            ),
         })
       : null;
 
-    const snapshot = yield* Effect.tryPromise({
+    const snapshot = yield* Task.attempt({
       try: () => {
-        let query: FirebaseFirestore.Query = firestore().collectionGroup(
+        let query: FirebaseFirestore.Query = db.collectionGroup(
           input.collectionId,
         );
 
@@ -125,10 +124,10 @@ export const queryCollectionGroup = (input: QueryCollectionGroupArgs) =>
         return query.limit(limit).get();
       },
       catch: (cause) =>
-        new FirestoreCollectionGroupQueryError({
-          message: `Failed to query collection group: ${input.collectionId}`,
+        new FirestoreCollectionGroupQueryError(
+          `Failed to query collection group: ${input.collectionId}`,
           cause,
-        }),
+        ),
     });
 
     const documents = snapshot.docs.map(normalizeDocument);

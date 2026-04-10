@@ -1,15 +1,16 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 
-import { AccessService } from '../../access';
-import { ConfigService } from '../../config';
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 import { normalizeDocument } from './types';
 
-export class FirestoreReadError extends Data.TaggedError('FirestoreReadError')<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreReadError extends Error {
+  readonly _tag = 'FirestoreReadError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreReadError';
+  }
+}
 
 export const READ_COLLECTION = 'read_collection' as const;
 
@@ -60,37 +61,29 @@ export const readCollectionDefinition: Tool = {
   },
 };
 
-export const readCollection = (input: ReadCollectionArgs) =>
-  Effect.gen(function* () {
-    const access = yield* AccessService;
-    yield* access.check(input.collection);
+export const readCollection = (ctx: ProjectContext, input: ReadCollectionArgs) =>
+  Task.gen(function* () {
+    yield* ctx.checkAccess(input.collection);
 
-    const { config } = yield* ConfigService;
-    const { firestore } = yield* FirebaseService;
-
-    const maxLimit = config.firestore.maxCollectionReadSize;
+    const db = ctx.firestore();
+    const maxLimit = ctx.config.firestore.maxCollectionReadSize;
     const limit = Math.min(input.limit ?? maxLimit, maxLimit);
 
     const cursorSnap = input.startAfter
-      ? yield* Effect.tryPromise({
+      ? yield* Task.attempt({
           try: () =>
-            firestore()
-              .collection(input.collection)
-              .doc(input.startAfter!)
-              .get(),
+            db.collection(input.collection).doc(input.startAfter!).get(),
           catch: (cause) =>
-            new FirestoreReadError({
-              message: `Failed to fetch cursor document: ${input.startAfter}`,
+            new FirestoreReadError(
+              `Failed to fetch cursor document: ${input.startAfter}`,
               cause,
-            }),
+            ),
         })
       : null;
 
-    const snapshot = yield* Effect.tryPromise({
+    const snapshot = yield* Task.attempt({
       try: () => {
-        let query: FirebaseFirestore.Query = firestore().collection(
-          input.collection,
-        );
+        let query: FirebaseFirestore.Query = db.collection(input.collection);
 
         if (input.select?.length) {
           query = query.select(...input.select);
@@ -103,22 +96,22 @@ export const readCollection = (input: ReadCollectionArgs) =>
         return query.limit(limit).get();
       },
       catch: (cause) =>
-        new FirestoreReadError({
-          message: `Failed to read collection: ${input.collection}`,
+        new FirestoreReadError(
+          `Failed to read collection: ${input.collection}`,
           cause,
-        }),
+        ),
     });
 
     const documents = snapshot.docs.map(normalizeDocument);
 
     if (documents.length === 0 && input.includePhantoms) {
-      const refs = yield* Effect.tryPromise({
-        try: () => firestore().collection(input.collection).listDocuments(),
+      const refs = yield* Task.attempt({
+        try: () => db.collection(input.collection).listDocuments(),
         catch: (cause) =>
-          new FirestoreReadError({
-            message: `Failed to list phantom documents in: ${input.collection}`,
+          new FirestoreReadError(
+            `Failed to list phantom documents in: ${input.collection}`,
             cause,
-          }),
+          ),
       });
 
       const phantoms = refs.map((ref) => ({ id: ref.id, path: ref.path }));

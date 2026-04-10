@@ -1,17 +1,16 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 
-import { AccessService } from '../../access';
-import { ConfigService } from '../../config';
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 import { normalizeDocument } from './types';
 
-export class FirestoreGetManyError extends Data.TaggedError(
-  'FirestoreGetManyError',
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreGetManyError extends Error {
+  readonly _tag = 'FirestoreGetManyError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreGetManyError';
+  }
+}
 
 export const GET_MANY_DOCUMENTS = 'get_many_documents' as const;
 
@@ -61,15 +60,14 @@ export const getManyDocumentsDefinition: Tool = {
   },
 };
 
-export const getManyDocuments = (input: GetManyDocumentsArgs) =>
-  Effect.gen(function* () {
-    const access = yield* AccessService;
-    const { config } = yield* ConfigService;
-    const { firestore } = yield* FirebaseService;
+export const getManyDocuments = (
+  ctx: ProjectContext,
+  input: GetManyDocumentsArgs,
+) =>
+  Task.gen(function* () {
+    const db = ctx.firestore();
+    const maxBatchSize = ctx.config.firestore.maxBatchFetchSize;
 
-    const maxBatchSize = config.firestore.maxBatchFetchSize;
-
-    // Resolve all paths — full paths take priority, otherwise build from collection + ids
     let allPaths: string[] = [];
 
     if (input.paths?.length) {
@@ -77,18 +75,18 @@ export const getManyDocuments = (input: GetManyDocumentsArgs) =>
     } else if (input.collection && input.ids?.length) {
       allPaths = input.ids.map((id) => `${input.collection}/${id}`);
     } else {
-      return yield* Effect.fail(
-        new FirestoreGetManyError({
-          message: 'Provide either paths, or both collection and ids.',
-        }),
+      return yield* Task.fail(
+        new FirestoreGetManyError(
+          'Provide either paths, or both collection and ids.',
+        ),
       );
     }
 
     if (allPaths.length > maxBatchSize) {
-      return yield* Effect.fail(
-        new FirestoreGetManyError({
-          message: `Batch size ${allPaths.length} exceeds maxBatchSize (${maxBatchSize}). Split into smaller batches.`,
-        }),
+      return yield* Task.fail(
+        new FirestoreGetManyError(
+          `Batch size ${allPaths.length} exceeds maxBatchSize (${maxBatchSize}). Split into smaller batches.`,
+        ),
       );
     }
 
@@ -97,21 +95,18 @@ export const getManyDocuments = (input: GetManyDocumentsArgs) =>
       ...new Set(allPaths.map((p) => p.split('/').slice(0, -1).join('/'))),
     ];
     for (const col of uniqueCollections) {
-      yield* access.check(col);
+      yield* ctx.checkAccess(col);
     }
 
-    const docRefs = allPaths.map((p) => firestore().doc(p));
+    const docRefs = allPaths.map((p) => db.doc(p));
 
-    const snaps = yield* Effect.tryPromise({
+    const snaps = yield* Task.attempt({
       try: () =>
         input.select?.length
-          ? firestore().getAll(...docRefs, { fieldMask: input.select })
-          : firestore().getAll(...docRefs),
+          ? db.getAll(...docRefs, { fieldMask: input.select })
+          : db.getAll(...docRefs),
       catch: (cause) =>
-        new FirestoreGetManyError({
-          message: 'Batch fetch failed',
-          cause,
-        }),
+        new FirestoreGetManyError('Batch fetch failed', cause),
     });
 
     return snaps.map((snap) =>

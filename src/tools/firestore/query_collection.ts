@@ -1,9 +1,7 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 
-import { AccessService } from '../../access';
-import { ConfigService } from '../../config';
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 import {
   FILTER_SCHEMA_ITEM,
   normalizeDocument,
@@ -12,12 +10,13 @@ import {
   QueryOrderBy,
 } from './types';
 
-export class FirestoreQueryError extends Data.TaggedError(
-  'FirestoreQueryError',
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreQueryError extends Error {
+  readonly _tag = 'FirestoreQueryError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreQueryError';
+  }
+}
 
 export const QUERY_COLLECTION = 'query_collection' as const;
 
@@ -75,37 +74,32 @@ export const queryCollectionDefinition: Tool = {
   },
 };
 
-export const queryCollection = (input: QueryCollectionArgs) =>
-  Effect.gen(function* () {
-    const access = yield* AccessService;
-    yield* access.check(input.collection);
+export const queryCollection = (
+  ctx: ProjectContext,
+  input: QueryCollectionArgs,
+) =>
+  Task.gen(function* () {
+    yield* ctx.checkAccess(input.collection);
 
-    const { config } = yield* ConfigService;
-    const { firestore } = yield* FirebaseService;
-
-    const maxLimit = config.firestore.maxCollectionReadSize;
+    const db = ctx.firestore();
+    const maxLimit = ctx.config.firestore.maxCollectionReadSize;
     const limit = Math.min(input.limit ?? maxLimit, maxLimit);
 
     const cursorSnap = input.startAfter
-      ? yield* Effect.tryPromise({
+      ? yield* Task.attempt({
           try: () =>
-            firestore()
-              .collection(input.collection)
-              .doc(input.startAfter!)
-              .get(),
+            db.collection(input.collection).doc(input.startAfter!).get(),
           catch: (cause) =>
-            new FirestoreQueryError({
-              message: `Failed to fetch cursor document: ${input.startAfter}`,
+            new FirestoreQueryError(
+              `Failed to fetch cursor document: ${input.startAfter}`,
               cause,
-            }),
+            ),
         })
       : null;
 
-    const snapshot = yield* Effect.tryPromise({
+    const snapshot = yield* Task.attempt({
       try: () => {
-        let query: FirebaseFirestore.Query = firestore().collection(
-          input.collection,
-        );
+        let query: FirebaseFirestore.Query = db.collection(input.collection);
 
         if (input.select?.length) {
           query = query.select(...input.select);
@@ -126,10 +120,10 @@ export const queryCollection = (input: QueryCollectionArgs) =>
         return query.limit(limit).get();
       },
       catch: (cause) =>
-        new FirestoreQueryError({
-          message: `Failed to query collection: ${input.collection}`,
+        new FirestoreQueryError(
+          `Failed to query collection: ${input.collection}`,
           cause,
-        }),
+        ),
     });
 
     const documents = snapshot.docs.map(normalizeDocument);

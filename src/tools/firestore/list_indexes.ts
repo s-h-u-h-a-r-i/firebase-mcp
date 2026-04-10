@@ -1,15 +1,16 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 import admin from 'firebase-admin';
 
-import { ConfigService } from '../../config';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 
-export class FirestoreListIndexesError extends Data.TaggedError(
-  'FirestoreListIndexesError',
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreListIndexesError extends Error {
+  readonly _tag = 'FirestoreListIndexesError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreListIndexesError';
+  }
+}
 
 export const LIST_INDEXES = 'list_indexes' as const;
 
@@ -62,21 +63,16 @@ export const listIndexesDefinition: Tool = {
   },
 };
 
-export const listIndexes = (input: ListIndexesArgs) =>
-  Effect.gen(function* () {
-    const { config } = yield* ConfigService;
-    const projectId = config.firebase.projectId;
+export const listIndexes = (ctx: ProjectContext, input: ListIndexesArgs) =>
+  Task.gen(function* () {
+    const projectId = ctx.config.firebase.projectId;
 
-    const token = yield* Effect.tryPromise({
+    const token = yield* Task.attempt({
       try: () => admin.app(projectId).options.credential!.getAccessToken(),
       catch: (cause) =>
-        new FirestoreListIndexesError({
-          message: 'Failed to get access token',
-          cause,
-        }),
+        new FirestoreListIndexesError('Failed to get access token', cause),
     });
 
-    // Fetch all pages of indexes
     const allIndexes: FirestoreIndexResponse[] = [];
     let pageToken: string | undefined;
 
@@ -86,16 +82,16 @@ export const listIndexes = (input: ListIndexesArgs) =>
       );
       if (pageToken) url.searchParams.set('pageToken', pageToken);
 
-      const page = yield* Effect.tryPromise({
+      const page = yield* Task.attempt({
         try: () =>
           fetch(url.toString(), {
             headers: { Authorization: `Bearer ${token.access_token}` },
           }).then((r) => r.json() as Promise<ApiResponse>),
         catch: (cause) =>
-          new FirestoreListIndexesError({
-            message: 'Failed to fetch indexes from Firestore Management API',
+          new FirestoreListIndexesError(
+            'Failed to fetch indexes from Firestore Management API',
             cause,
-          }),
+          ),
       });
 
       allIndexes.push(...(page.indexes ?? []));
@@ -138,8 +134,5 @@ export const listIndexes = (input: ListIndexesArgs) =>
       grouped[idx.collectionGroup].push(idx);
     }
 
-    return {
-      total: parsed.length,
-      indexes: grouped,
-    };
+    return { total: parsed.length, indexes: grouped };
   });

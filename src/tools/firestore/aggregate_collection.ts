@@ -1,17 +1,17 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 import { AggregateField } from 'firebase-admin/firestore';
 
-import { AccessService } from '../../access';
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 import { FILTER_SCHEMA_ITEM, QueryFilter } from './types';
 
-export class FirestoreAggregateError extends Data.TaggedError(
-  'FirestoreAggregateError',
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreAggregateError extends Error {
+  readonly _tag = 'FirestoreAggregateError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreAggregateError';
+  }
+}
 
 export const AGGREGATE_COLLECTION = 'aggregate_collection' as const;
 
@@ -78,18 +78,18 @@ export const aggregateCollectionDefinition: Tool = {
   },
 };
 
-export const aggregateCollection = (input: AggregateCollectionArgs) =>
-  Effect.gen(function* () {
-    const access = yield* AccessService;
-    yield* access.check(input.collection);
+export const aggregateCollection = (
+  ctx: ProjectContext,
+  input: AggregateCollectionArgs,
+) =>
+  Task.gen(function* () {
+    yield* ctx.checkAccess(input.collection);
 
-    const { firestore } = yield* FirebaseService;
-
-    const result = yield* Effect.tryPromise({
+    const result = yield* Task.attempt({
       try: () => {
-        let query: FirebaseFirestore.Query = firestore().collection(
-          input.collection,
-        );
+        let query: FirebaseFirestore.Query = ctx
+          .firestore()
+          .collection(input.collection);
 
         for (const filter of input.filters ?? []) {
           query = query.where(filter.field, filter.operator, filter.value);
@@ -97,8 +97,7 @@ export const aggregateCollection = (input: AggregateCollectionArgs) =>
 
         const spec = Object.fromEntries(
           input.aggregations.map((agg) => {
-            if (agg.type === 'count')
-              return [agg.alias, AggregateField.count()];
+            if (agg.type === 'count') return [agg.alias, AggregateField.count()];
             if (agg.type === 'sum')
               return [agg.alias, AggregateField.sum(agg.field!)];
             return [agg.alias, AggregateField.average(agg.field!)];
@@ -111,10 +110,10 @@ export const aggregateCollection = (input: AggregateCollectionArgs) =>
           .then((snap) => snap.data());
       },
       catch: (cause) =>
-        new FirestoreAggregateError({
-          message: `Failed to aggregate collection: ${input.collection}`,
+        new FirestoreAggregateError(
+          `Failed to aggregate collection: ${input.collection}`,
           cause,
-        }),
+        ),
     });
 
     return { collection: input.collection, result };

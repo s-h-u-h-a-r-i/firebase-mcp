@@ -1,15 +1,15 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 
-import { AccessService } from '../../access';
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 
-export class FirestoreListDocumentsError extends Data.TaggedError(
-  'FirestoreListDocumentsError',
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreListDocumentsError extends Error {
+  readonly _tag = 'FirestoreListDocumentsError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreListDocumentsError';
+  }
+}
 
 export const LIST_DOCUMENTS = 'list_documents' as const;
 
@@ -44,24 +44,23 @@ export const listDocumentsDefinition: Tool = {
   },
 };
 
-export const listDocuments = (input: ListDocumentsArgs) =>
-  Effect.gen(function* () {
-    const access = yield* AccessService;
-    yield* access.check(input.collection);
+export const listDocuments = (ctx: ProjectContext, input: ListDocumentsArgs) =>
+  Task.gen(function* () {
+    yield* ctx.checkAccess(input.collection);
 
-    const { firestore } = yield* FirebaseService;
+    const db = ctx.firestore();
 
-    const refs = yield* Effect.tryPromise({
-      try: () => firestore().collection(input.collection).listDocuments(),
+    const refs = yield* Task.attempt({
+      try: () => db.collection(input.collection).listDocuments(),
       catch: (cause) =>
-        new FirestoreListDocumentsError({
-          message: `Failed to list documents in: ${input.collection}`,
+        new FirestoreListDocumentsError(
+          `Failed to list documents in: ${input.collection}`,
           cause,
-        }),
+        ),
     });
 
     if (input.includeCollections) {
-      const results = yield* Effect.tryPromise({
+      const results = yield* Task.attempt({
         try: () =>
           Promise.all(
             refs.map(async (ref) => {
@@ -74,10 +73,10 @@ export const listDocuments = (input: ListDocumentsArgs) =>
             }),
           ),
         catch: (cause) =>
-          new FirestoreListDocumentsError({
-            message: `Failed to list subcollections in: ${input.collection}`,
+          new FirestoreListDocumentsError(
+            `Failed to list subcollections in: ${input.collection}`,
             cause,
-          }),
+          ),
       });
       return results;
     }

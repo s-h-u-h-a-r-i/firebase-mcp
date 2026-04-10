@@ -1,16 +1,16 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 
-import { AccessService } from '../../access';
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 import { FILTER_SCHEMA_ITEM, QueryFilter } from './types';
 
-export class FirestoreCountError extends Data.TaggedError(
-  'FirestoreCountError',
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreCountError extends Error {
+  readonly _tag = 'FirestoreCountError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreCountError';
+  }
+}
 
 export const COUNT_DOCUMENTS = 'count_documents' as const;
 
@@ -44,18 +44,15 @@ export const countDocumentsDefinition: Tool = {
   },
 };
 
-export const countDocuments = (input: CountDocumentsArgs) =>
-  Effect.gen(function* () {
-    const access = yield* AccessService;
-    yield* access.check(input.collection);
+export const countDocuments = (ctx: ProjectContext, input: CountDocumentsArgs) =>
+  Task.gen(function* () {
+    yield* ctx.checkAccess(input.collection);
 
-    const { firestore } = yield* FirebaseService;
-
-    const count = yield* Effect.tryPromise({
+    const count = yield* Task.attempt({
       try: () => {
-        let query: FirebaseFirestore.Query = firestore().collection(
-          input.collection,
-        );
+        let query: FirebaseFirestore.Query = ctx
+          .firestore()
+          .collection(input.collection);
 
         for (const filter of input.filters ?? []) {
           query = query.where(filter.field, filter.operator, filter.value);
@@ -67,10 +64,10 @@ export const countDocuments = (input: CountDocumentsArgs) =>
           .then((snap) => snap.data().count);
       },
       catch: (cause) =>
-        new FirestoreCountError({
-          message: `Failed to count documents in: ${input.collection}`,
+        new FirestoreCountError(
+          `Failed to count documents in: ${input.collection}`,
           cause,
-        }),
+        ),
     });
 
     return { collection: input.collection, count };

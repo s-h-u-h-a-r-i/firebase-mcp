@@ -32,16 +32,13 @@
   "license": "MIT",
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
-    "@effect/platform": "^0.96.0",
-    "@effect/platform-node": "^0.106.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "effect": "^3.21.0",
     "firebase-admin": "^13.7.0",
     "micromatch": "^4.0.8",
-    "minimist": "^1.2.8"
+    "minimist": "^1.2.8",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@effect/language-service": "^0.84.3",
     "@types/micromatch": "^4.0.10",
     "@types/minimist": "^1.2.5",
     "@types/node": "^25.5.2",

@@ -9,3 +9,4 @@ export * from './list_indexes';
 export * from './query_collection';
 export * from './query_collection_group';
 export * from './read_collections';
+export * from './read';

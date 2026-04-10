@@ -1,43 +1,28 @@
 import { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Effect } from 'effect';
 
+import type { ProjectContext } from '../project';
+import { Task } from '../task';
 import * as AuthTool from './auth';
 import * as ConfigTool from './config';
 import * as FirestoreTool from './firestore';
 
-export { GET_CONFIG, RELOAD_CONFIG, getConfig, reloadConfig } from './config';
+export { AUTH_READ } from './auth';
+export { GET_CONFIG, getConfig, RELOAD_CONFIG, reloadConfig } from './config';
+export { FIRESTORE_READ } from './firestore';
 
-type ToolNames =
-  | typeof FirestoreTool.AGGREGATE_COLLECTION
-  | typeof FirestoreTool.COUNT_DOCUMENTS
-  | typeof FirestoreTool.GET_COLLECTION_SCHEMA
-  | typeof FirestoreTool.GET_MANY_DOCUMENTS
-  | typeof FirestoreTool.LIST_INDEXES
-  | typeof FirestoreTool.READ_COLLECTION
-  | typeof FirestoreTool.GET_DOCUMENT
-  | typeof FirestoreTool.LIST_COLLECTIONS
-  | typeof FirestoreTool.LIST_DOCUMENTS
-  | typeof FirestoreTool.QUERY_COLLECTION
-  | typeof FirestoreTool.QUERY_COLLECTION_GROUP
-  | typeof AuthTool.GET_USER
-  | typeof AuthTool.LIST_USERS;
+class UnknownToolError extends Error {
+  readonly _tag = 'UnknownTool' as const;
+  constructor(readonly toolName: string) {
+    super(`Unknown tool: ${toolName}`);
+    this.name = 'UnknownToolError';
+  }
+}
 
 export const allToolDefinitions: Tool[] = [
   ConfigTool.getConfigDefinition,
   ConfigTool.reloadConfigDefinition,
-  FirestoreTool.aggregateCollectionDefinition,
-  FirestoreTool.listCollectionsDefinition,
-  FirestoreTool.listDocumentsDefinition,
-  FirestoreTool.listIndexesDefinition,
-  FirestoreTool.getCollectionSchemaDefinition,
-  FirestoreTool.countDocumentsDefinition,
-  FirestoreTool.readCollectionDefinition,
-  FirestoreTool.getDocumentDefinition,
-  FirestoreTool.getManyDocumentsDefinition,
-  FirestoreTool.queryCollectionDefinition,
-  FirestoreTool.queryCollectionGroupDefinition,
-  AuthTool.getUserDefinition,
-  AuthTool.listUsersDefinition,
+  FirestoreTool.firestoreReadDefinition,
+  AuthTool.authReadDefinition,
 ];
 
 const toErrorResult = (
@@ -62,70 +47,26 @@ const toSuccessResult = (data: unknown): CallToolResult => ({
 });
 
 export const dispatchTool = (
-  name: ToolNames | (string & {}),
-  args: Record<string, unknown>,
-) =>
-  Effect.gen(function* () {
+  ctx: ProjectContext,
+  name: string,
+  args: Record<string, unknown> & { operation: string },
+): Task<CallToolResult, never> => {
+  const { operation, ...rest } = args;
+  return Task.gen(function* () {
     switch (name) {
-      case FirestoreTool.AGGREGATE_COLLECTION:
-        return yield* FirestoreTool.aggregateCollection(
-          args as unknown as FirestoreTool.AggregateCollectionArgs,
-        );
-      case FirestoreTool.COUNT_DOCUMENTS:
-        return yield* FirestoreTool.countDocuments(
-          args as unknown as FirestoreTool.CountDocumentsArgs,
-        );
-      case FirestoreTool.GET_COLLECTION_SCHEMA:
-        return yield* FirestoreTool.getCollectionSchema(
-          args as unknown as FirestoreTool.GetCollectionSchemaArgs,
-        );
-      case FirestoreTool.GET_MANY_DOCUMENTS:
-        return yield* FirestoreTool.getManyDocuments(
-          args as unknown as FirestoreTool.GetManyDocumentsArgs,
-        );
-      case FirestoreTool.LIST_INDEXES:
-        return yield* FirestoreTool.listIndexes(
-          args as unknown as FirestoreTool.ListIndexesArgs,
-        );
-      case FirestoreTool.QUERY_COLLECTION_GROUP:
-        return yield* FirestoreTool.queryCollectionGroup(
-          args as unknown as FirestoreTool.QueryCollectionGroupArgs,
-        );
-      case FirestoreTool.LIST_COLLECTIONS:
-        return yield* FirestoreTool.listCollections(
-          args as unknown as FirestoreTool.ListCollectionsArgs,
-        );
-      case FirestoreTool.LIST_DOCUMENTS:
-        return yield* FirestoreTool.listDocuments(
-          args as unknown as FirestoreTool.ListDocumentsArgs,
-        );
-      case FirestoreTool.READ_COLLECTION:
-        return yield* FirestoreTool.readCollection(
-          args as unknown as FirestoreTool.ReadCollectionArgs,
-        );
-      case FirestoreTool.GET_DOCUMENT:
-        return yield* FirestoreTool.getDocument(
-          args as unknown as FirestoreTool.GetDocumentArgs,
-        );
-      case FirestoreTool.QUERY_COLLECTION:
-        return yield* FirestoreTool.queryCollection(
-          args as unknown as FirestoreTool.QueryCollectionArgs,
-        );
-      case AuthTool.GET_USER:
-        return yield* AuthTool.getUser(args as unknown as AuthTool.GetUserArgs);
-      case AuthTool.LIST_USERS:
-        return yield* AuthTool.listUsers(
-          args as unknown as AuthTool.ListUsersArgs,
-        );
+      case FirestoreTool.FIRESTORE_READ:
+        return yield* FirestoreTool.dispatchFirestoreRead(ctx, operation, rest);
+      case AuthTool.AUTH_READ:
+        return yield* AuthTool.dispatchAuthRead(ctx, operation, rest);
       default:
-        return yield* Effect.fail({ _tag: 'UnknownTool' as const, name });
+        return yield* Task.fail(new UnknownToolError(name));
     }
-  }).pipe(
-    Effect.map(toSuccessResult),
-    Effect.catchAll((err) => {
+  })
+    .map(toSuccessResult)
+    .catchAll((err): Task<CallToolResult, never> => {
       switch (err._tag) {
         case 'AccessDeniedError':
-          return Effect.succeed(
+          return Task.succeed(
             toErrorResult(
               'ACCESS_DENIED',
               `Access to path '${err.path}' is not allowed`,
@@ -133,7 +74,7 @@ export const dispatchTool = (
             ),
           );
         case 'DocumentNotFoundError':
-          return Effect.succeed(
+          return Task.succeed(
             toErrorResult('NOT_FOUND', `Document not found: ${err.path}`, {
               path: err.path,
             }),
@@ -149,30 +90,28 @@ export const dispatchTool = (
         case 'FirestoreGetManyError':
         case 'FirestoreListIndexesError':
         case 'FirestoreCollectionGroupQueryError':
-          return Effect.succeed(
+          return Task.succeed(
             toErrorResult('FIRESTORE_ERROR', err.message, {
               cause: String(err.cause),
             }),
           );
         case 'AuthGetUserError':
         case 'AuthListUsersError':
-          return Effect.succeed(
+          return Task.succeed(
             toErrorResult('AUTH_ERROR', err.message, {
               cause: String(err.cause),
             }),
           );
         case 'AuthUserNotFoundError':
-          return Effect.succeed(
-            toErrorResult(
-              'NOT_FOUND',
-              `User not found: ${err.identifier}`,
-              { identifier: err.identifier },
-            ),
+          return Task.succeed(
+            toErrorResult('NOT_FOUND', `User not found: ${err.identifier}`, {
+              identifier: err.identifier,
+            }),
           );
+        case 'UnknownFirestoreOperationError':
+        case 'UnknownAuthOperationError':
         case 'UnknownTool':
-          return Effect.succeed(
-            toErrorResult('UNKNOWN_TOOL', `Unknown tool: ${err.name}`),
-          );
+          return Task.succeed(toErrorResult('UNKNOWN_TOOL', err.message));
       }
-    }),
-  );
+    });
+};

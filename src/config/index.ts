@@ -1,73 +1,65 @@
-import { Context, Data, Effect, Schema } from 'effect';
 import minimist from 'minimist';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { z } from 'zod';
 
-export class ConfigError extends Data.TaggedError('ConfigError')<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+import { Task } from '../task';
 
-const FirebaseConfigSchema = Schema.Struct({
-  projectId: Schema.String,
-  serviceAccountPath: Schema.String,
+export class ConfigError extends Error {
+  readonly _tag = 'ConfigError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'ConfigError';
+  }
+}
+
+const FirebaseConfigSchema = z.object({
+  projectId: z.string(),
+  serviceAccountPath: z.string(),
 });
 
-const FirestoreRulesSchema = Schema.Struct({
-  allow: Schema.Array(Schema.String),
-  deny: Schema.Array(Schema.String),
+const FirestoreRulesSchema = z.object({
+  allow: z.array(z.string()),
+  deny: z.array(z.string()),
 });
 
-const FirestoreConfigSchema = Schema.Struct({
+const FirestoreConfigSchema = z.object({
   rules: FirestoreRulesSchema,
-  maxCollectionReadSize: Schema.optionalWith(Schema.Number, { default: () => 10 }),
-  maxBatchFetchSize: Schema.optionalWith(Schema.Number, { default: () => 200 }),
+  maxCollectionReadSize: z.number().default(10),
+  maxBatchFetchSize: z.number().default(200),
 });
 
-export const ProjectConfigSchema = Schema.Struct({
+export const ProjectConfigSchema = z.object({
   firebase: FirebaseConfigSchema,
   firestore: FirestoreConfigSchema,
 });
 
-const AppConfigSchema = Schema.Struct({
-  projects: Schema.Record({ key: Schema.String, value: ProjectConfigSchema }),
+const AppConfigSchema = z.object({
+  projects: z.record(z.string(), ProjectConfigSchema),
 });
 
-export type ProjectConfig = Schema.Schema.Type<typeof ProjectConfigSchema>;
-export type AppConfig = Schema.Schema.Type<typeof AppConfigSchema>;
+export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+export type AppConfig = z.infer<typeof AppConfigSchema>;
 
-export const loadConfig = (configPath: string): Effect.Effect<AppConfig, ConfigError> =>
-  Effect.gen(function* () {
-    const absolutePath = resolve(configPath);
-
-    const raw = yield* Effect.try({
-      try: () => readFileSync(absolutePath, 'utf-8'),
-      catch: (cause) =>
-        new ConfigError({
-          message: `Config file not found: ${absolutePath}`,
-          cause,
-        }),
-    });
-
-    const json = yield* Effect.try({
-      try: () => JSON.parse(raw) as unknown,
-      catch: (cause) =>
-        new ConfigError({ message: `Config file is not valid JSON`, cause }),
-    });
-
-    return yield* Schema.decodeUnknown(AppConfigSchema)(json).pipe(
-      Effect.mapError(
-        (cause) => new ConfigError({ message: `Config validation failed`, cause }),
-      ),
-    );
+export const loadConfig = (configPath: string): Task<AppConfig, ConfigError> =>
+  Task.attempt({
+    try: () => {
+      const absolutePath = resolve(configPath);
+      const raw = readFileSync(absolutePath, 'utf-8');
+      const json = JSON.parse(raw) as unknown;
+      const result = AppConfigSchema.safeParse(json);
+      if (!result.success) {
+        throw new ConfigError('Config validation failed', result.error);
+      }
+      return result.data;
+    },
+    catch: (cause) => {
+      if (cause instanceof ConfigError) return cause;
+      return new ConfigError(`Failed to load config: ${configPath}`, cause);
+    },
   });
 
 export const getConfigPath = (): string => {
   const args = minimist(process.argv.slice(2));
   return args['config'] ?? './firebase-mcp.json';
 };
-
-export class ConfigService extends Context.Tag('ConfigService')<
-  ConfigService,
-  { readonly config: ProjectConfig }
->() {}
