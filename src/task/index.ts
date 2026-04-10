@@ -183,33 +183,37 @@ export class Task<A, E> {
     });
   }
 
-  static gen<T>(f: () => Generator<Task<any, any>, T, any>) {
-    return new Task(async (signal) => {
-      const iterator = f();
+  static gen<Eff extends Task<any, any>, T>(f: () => Generator<Eff, T, any>) {
+    return new Task(
+      async (
+        signal,
+      ): Promise<Exit<T, Eff extends Task<any, infer E> ? E : never>> => {
+        const iterator = f();
 
-      let state = iterator.next();
+        let state = iterator.next();
 
-      while (!state.done) {
-        const aborted = abortIfNeeded(signal);
-        if (aborted) return aborted;
+        while (!state.done) {
+          const aborted = abortIfNeeded(signal);
+          if (aborted) return aborted;
 
-        const exit = await state.value.run(signal);
+          const exit = await state.value.run(signal);
 
-        if (Exit.isOk(exit)) {
-          state = iterator.next(exit.value);
-        } else {
-          return exit;
+          if (Exit.isOk(exit)) {
+            state = iterator.next(exit.value);
+          } else {
+            return exit;
+          }
         }
-      }
 
-      return Exit.ok(state.value);
-    });
+        return Exit.ok(state.value);
+      },
+    );
   }
 
-  [Symbol.iterator](): Generator<Task<A, E>, A, A> {
+  [Symbol.iterator](): Generator<Task<A, E>, A, any> {
     const self = this;
     return (function* () {
-      return yield self;
+      return (yield self) as A;
     })();
   }
 }
