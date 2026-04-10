@@ -112,7 +112,7 @@ export const firestoreReadDefinition: Tool = {
           '- aggregate_collection: Server-side sum/avg/count aggregations. Args: collection(ODD segments), aggregations[]{alias,type,field?}, filters?[]',
           '- get_collection_schema: Infer field types by sampling docs. Args: collection(ODD segments), sampleSize?(default 20)',
           '- list_indexes: List composite indexes. Args: collectionGroup?(filter by name), includeNotReady?(bool)',
-          '- distinct_values: Count occurrences of each unique value of a field. Args: collection(ODD segments) OR collectionId(single name — queries across ALL subcollections with that name, like query_collection_group), field(field name), filters?[]. Fetches all matching docs internally (up to maxBatchFetchSize). Returns values[] sorted by count desc. When using collectionId, also returns byCollection{} — counts broken down by each parent collection path, e.g. per-store breakdown.',
+          '- distinct_values: Count occurrences of each unique value of a field. Args: collection(ODD segments) OR collectionId(single name — queries across ALL subcollections with that name, like query_collection_group), field(field name), filters?[], groupByPathSegment?(integer index — when using collectionId, extracts this segment from the parent collection path as the byCollection key, e.g. 2 turns "shared/stores_data/ABC123/data/purchase_orders" into "ABC123"). Fetches all matching docs internally (up to maxBatchFetchSize). Returns values[] sorted by count desc. When using collectionId, also returns byCollection{} broken down by parent collection path (or extracted segment if groupByPathSegment is set).',
         ].join('\n'),
       },
       projectId: {
@@ -223,6 +223,11 @@ export const firestoreReadDefinition: Tool = {
       field: {
         type: 'string',
         description: 'distinct_values: field name to count unique values for',
+      },
+      groupByPathSegment: {
+        type: 'number',
+        description:
+          'distinct_values with collectionId: 0-based index of the path segment to use as the byCollection key instead of the full path (e.g. 2 extracts "ABC123" from "shared/stores_data/ABC123/data/purchase_orders")',
       },
     },
   },

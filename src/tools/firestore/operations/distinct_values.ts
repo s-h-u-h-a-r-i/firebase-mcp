@@ -18,6 +18,7 @@ export interface DistinctValuesArgs {
   collectionId?: string;
   field: string;
   filters?: QueryFilter[];
+  groupByPathSegment?: number;
 }
 
 type ValueCount = { value: string | null; count: number };
@@ -29,7 +30,7 @@ const toValueCounts = (map: Map<string, number>): ValueCount[] =>
 
 export const distinctValues = (ctx: ProjectContext, input: DistinctValuesArgs) =>
   Task.gen(function* () {
-    const { collection, collectionId, field, filters } = input;
+    const { collection, collectionId, field, filters, groupByPathSegment } = input;
 
     if (!collection && !collectionId) {
       return yield* Task.fail(
@@ -92,8 +93,12 @@ export const distinctValues = (ctx: ProjectContext, input: DistinctValuesArgs) =
 
         if (byColl) {
           const collPath = doc.ref.parent.path;
-          if (!byColl.has(collPath)) byColl.set(collPath, new Map());
-          const colCounts = byColl.get(collPath)!;
+          const groupKey =
+            groupByPathSegment !== undefined
+              ? (collPath.split('/')[groupByPathSegment] ?? collPath)
+              : collPath;
+          if (!byColl.has(groupKey)) byColl.set(groupKey, new Map());
+          const colCounts = byColl.get(groupKey)!;
           colCounts.set(key, (colCounts.get(key) ?? 0) + 1);
         }
       }
