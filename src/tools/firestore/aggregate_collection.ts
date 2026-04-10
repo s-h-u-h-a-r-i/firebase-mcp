@@ -3,6 +3,7 @@ import { AggregateField } from 'firebase-admin/firestore';
 
 import type { ProjectContext } from '../../project';
 import { Task } from '../../task';
+import { collectionPathError } from './paths';
 import { FILTER_SCHEMA_ITEM, QueryFilter } from './types';
 
 export class FirestoreAggregateError extends Error {
@@ -83,6 +84,10 @@ export const aggregateCollection = (
   input: AggregateCollectionArgs,
 ) =>
   Task.gen(function* () {
+    const err = collectionPathError(input.collection);
+    if (err) {
+      return yield* Task.fail(new FirestoreAggregateError(err));
+    }
     yield* ctx.checkAccess(input.collection);
 
     const result = yield* Task.attempt({

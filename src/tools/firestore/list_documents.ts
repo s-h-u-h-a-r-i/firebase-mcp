@@ -2,6 +2,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 import type { ProjectContext } from '../../project';
 import { Task } from '../../task';
+import { collectionPathError } from './paths';
 
 export class FirestoreListDocumentsError extends Error {
   readonly _tag = 'FirestoreListDocumentsError' as const;
@@ -46,6 +47,10 @@ export const listDocumentsDefinition: Tool = {
 
 export const listDocuments = (ctx: ProjectContext, input: ListDocumentsArgs) =>
   Task.gen(function* () {
+    const err = collectionPathError(input.collection);
+    if (err) {
+      return yield* Task.fail(new FirestoreListDocumentsError(err));
+    }
     yield* ctx.checkAccess(input.collection);
 
     const db = ctx.firestore();

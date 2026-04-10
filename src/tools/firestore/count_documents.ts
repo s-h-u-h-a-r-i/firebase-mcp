@@ -2,6 +2,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 import type { ProjectContext } from '../../project';
 import { Task } from '../../task';
+import { collectionPathError } from './paths';
 import { FILTER_SCHEMA_ITEM, QueryFilter } from './types';
 
 export class FirestoreCountError extends Error {
@@ -46,6 +47,10 @@ export const countDocumentsDefinition: Tool = {
 
 export const countDocuments = (ctx: ProjectContext, input: CountDocumentsArgs) =>
   Task.gen(function* () {
+    const err = collectionPathError(input.collection);
+    if (err) {
+      return yield* Task.fail(new FirestoreCountError(err));
+    }
     yield* ctx.checkAccess(input.collection);
 
     const count = yield* Task.attempt({

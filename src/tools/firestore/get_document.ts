@@ -2,6 +2,7 @@ import { Tool } from '@modelcontextprotocol/sdk/types.js';
 
 import type { ProjectContext } from '../../project';
 import { Task } from '../../task';
+import { documentPathError } from './paths';
 import { normalizeDocument } from './types';
 
 export class FirestoreGetError extends Error {
@@ -54,6 +55,10 @@ export const getDocumentDefinition: Tool = {
 
 export const getDocument = (ctx: ProjectContext, input: GetDocumentArgs) =>
   Task.gen(function* () {
+    const err = documentPathError(input.path);
+    if (err) {
+      return yield* Task.fail(new FirestoreGetError(err));
+    }
     yield* ctx.checkAccess(input.path);
 
     const db = ctx.firestore();
