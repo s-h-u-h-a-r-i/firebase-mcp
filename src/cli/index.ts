@@ -1,16 +1,14 @@
 #!/usr/bin/env node
 
-import { NodeRuntime } from '@effect/platform-node';
-import { Effect } from 'effect';
+import { FirebaseMcpServer } from '../server';
 
-import { McpServerService } from '../server';
+async function main() {
+  const server = new FirebaseMcpServer();
+  await server.start();
+  process.stderr.write('[firebase-mcp] Server running on stdio\n');
+}
 
-const program = Effect.gen(function* () {
-  const mcp = yield* McpServerService;
-  yield* mcp.start();
-  yield* Effect.sync(() =>
-    process.stderr.write('[firebase-mcp] Server running on stdio\n'),
-  );
-}).pipe(Effect.provide(McpServerService.Default));
-
-NodeRuntime.runMain(program);
+main().catch((err) => {
+  process.stderr.write(`[firebase-mcp] Fatal: ${String(err)}\n`);
+  process.exit(1);
+});

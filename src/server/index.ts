@@ -4,16 +4,9 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect, Layer, ManagedRuntime } from 'effect';
 
-import { AccessService } from '../access';
-import {
-  ConfigService,
-  getConfigPath,
-  loadConfig,
-  ProjectConfig,
-} from '../config';
-import { FirebaseInitError, FirebaseService } from '../firebase';
+import { AppConfig, getConfigPath, loadConfig, ProjectConfig } from '../config';
+import { createProjectContext, ProjectContext } from '../project';
 import {
   allToolDefinitions,
   dispatchTool,
@@ -23,10 +16,16 @@ import {
   reloadConfig,
 } from '../tools';
 
-export class McpServerError extends Data.TaggedError('McpServerError')<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class McpServerError extends Error {
+  readonly _tag = 'McpServerError' as const;
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'McpServerError';
+  }
+}
 
 const toErrorResult = (code: string, message: string, details?: unknown) => ({
   content: [
@@ -41,135 +40,122 @@ const toErrorResult = (code: string, message: string, details?: unknown) => ({
   isError: true,
 });
 
-export class McpServerService extends Effect.Service<McpServerService>()(
-  'McpServerService',
-  {
-    accessors: true,
-    effect: Effect.gen(function* () {
-      const configPath = getConfigPath();
-      let appConfig = yield* loadConfig(configPath);
+export class FirebaseMcpServer {
+  private appConfig!: AppConfig;
+  private readonly projectContexts = new Map<string, Promise<ProjectContext>>();
+  private readonly mcpServer: McpServer;
+  private readonly configPath: string;
 
-      const projectRuntimes = new Map<
-        string,
-        ManagedRuntime.ManagedRuntime<
-          ConfigService | FirebaseService | AccessService,
-          FirebaseInitError
-        >
-      >();
+  constructor() {
+    this.configPath = getConfigPath();
+    this.mcpServer = new McpServer(
+      { name: 'firebase-mcp', version: '0.1.0' },
+      { capabilities: { tools: {} } },
+    );
+  }
 
-      const buildProjectRuntime = (projectConfig: ProjectConfig) => {
-        const configLayer = Layer.succeed(ConfigService, {
-          config: projectConfig,
-        });
-        const layer = Layer.mergeAll(
-          configLayer,
-          Layer.provide(FirebaseService.Default, configLayer),
-          Layer.provide(AccessService.Default, configLayer),
-        );
-        return ManagedRuntime.make(layer);
-      };
+  async start(): Promise<void> {
+    const { exit } = loadConfig(this.configPath).fork();
+    const result = await exit;
+    if (result._tag === 'err') throw result.error;
+    if (result._tag === 'die') throw result.cause;
+    this.appConfig = result.value;
 
-      const getOrInitProject = (projectId: string) => {
-        const cached = projectRuntimes.get(projectId);
-        if (cached) return cached;
+    this.mcpServer.server.setRequestHandler(
+      ListToolsRequestSchema,
+      async () => ({ tools: allToolDefinitions }),
+    );
 
-        const projectConfig = appConfig.projects[projectId];
-        if (!projectConfig) return null;
+    this.mcpServer.server.setRequestHandler(
+      CallToolRequestSchema,
+      async (request) => {
+        const name = request.params.name;
+        const args = request.params.arguments ?? {};
 
-        const runtime = buildProjectRuntime(projectConfig);
-        projectRuntimes.set(projectId, runtime);
-        return runtime;
-      };
+        if (name === GET_CONFIG) {
+          return getConfig(this.appConfig);
+        }
 
-      const disposeAllRuntimes = async () => {
-        await Promise.all(
-          [...projectRuntimes.values()].map((r) => r.dispose()),
-        );
-        projectRuntimes.clear();
-      };
-
-      const mcpServer = new McpServer(
-        { name: 'firebase-mcp', version: '0.1.0' },
-        { capabilities: { tools: {} } },
-      );
-
-      mcpServer.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-        tools: allToolDefinitions,
-      }));
-
-      mcpServer.server.setRequestHandler(
-        CallToolRequestSchema,
-        async (request) => {
-          const name = request.params.name;
-          const args = request.params.arguments ?? {};
-
-          if (name === GET_CONFIG) {
-            return getConfig(appConfig);
-          }
-
-          if (name === RELOAD_CONFIG) {
-            return reloadConfig(async () => {
-              const newConfig = await Effect.runPromise(loadConfig(configPath));
-              await disposeAllRuntimes();
-              appConfig = newConfig;
-              return { projects: Object.keys(newConfig.projects) };
-            });
-          }
-
-          const projectId =
-            typeof args.projectId === 'string' ? args.projectId : null;
-
-          if (!projectId) {
-            return toErrorResult(
-              'MISSING_PROJECT_ID',
-              'projectId is required. Call get_config to see available projects.',
-            );
-          }
-
-          const runtime = getOrInitProject(projectId);
-
-          if (!runtime) {
-            return toErrorResult(
-              'PROJECT_NOT_FOUND',
-              `Project "${projectId}" not found in config. Call get_config to see available projects.`,
-              { projectId, available: Object.keys(appConfig.projects) },
-            );
-          }
-
-          const { projectId: _stripped, ...toolArgs } = args as Record<
-            string,
-            unknown
-          >;
-
-          return runtime
-            .runPromise(dispatchTool(name, toolArgs))
-            .catch((cause) => ({
-              content: [
-                {
-                  type: 'text',
-                  text: JSON.stringify({
-                    success: false,
-                    error: { code: 'INTERNAL_ERROR', message: String(cause) },
-                  }),
-                },
-              ],
-              isError: true,
-            }));
-        },
-      );
-
-      return {
-        start() {
-          return Effect.tryPromise({
-            try: () => mcpServer.server.connect(new StdioServerTransport()),
-            catch: (cause) =>
-              new McpServerError({
-                message: 'Failed to connect stdio transport',
-                cause,
-              }),
+        if (name === RELOAD_CONFIG) {
+          return reloadConfig(async () => {
+            const { exit: cfgExit } = loadConfig(this.configPath).fork();
+            const cfgResult = await cfgExit;
+            if (cfgResult._tag !== 'ok') {
+              throw cfgResult._tag === 'err'
+                ? cfgResult.error
+                : cfgResult.cause;
+            }
+            this.projectContexts.clear();
+            this.appConfig = cfgResult.value;
+            return { projects: Object.keys(cfgResult.value.projects) };
           });
-        },
-      };
-    }),
-  },
-) {}
+        }
+
+        const projectId =
+          typeof args.projectId === 'string' ? args.projectId : null;
+
+        if (!projectId) {
+          return toErrorResult(
+            'MISSING_PROJECT_ID',
+            'projectId is required. Call get_config to see available projects.',
+          );
+        }
+
+        const projectConfig = this.appConfig.projects[projectId];
+        if (!projectConfig) {
+          return toErrorResult(
+            'PROJECT_NOT_FOUND',
+            `Project "${projectId}" not found in config. Call get_config to see available projects.`,
+            { projectId, available: Object.keys(this.appConfig.projects) },
+          );
+        }
+
+        const { projectId: _stripped, ...toolArgs } = args as Record<
+          string,
+          unknown
+        >;
+
+        let ctx: ProjectContext;
+        try {
+          ctx = await this.getOrInitProject(projectId, projectConfig);
+        } catch (cause) {
+          return toErrorResult(
+            'FIREBASE_INIT_ERROR',
+            `Failed to initialize Firebase for project "${projectId}": ${String(cause)}`,
+          );
+        }
+
+        const { exit: toolExit } = dispatchTool(ctx, name, toolArgs).fork();
+        const toolResult = await toolExit;
+
+        if (toolResult._tag === 'ok') return toolResult.value;
+
+        return toErrorResult(
+          'INTERNAL_ERROR',
+          `Unexpected error: ${String(
+            toolResult._tag === 'err' ? toolResult.error : toolResult.cause,
+          )}`,
+        );
+      },
+    );
+
+    await this.mcpServer.server.connect(new StdioServerTransport());
+  }
+
+  private getOrInitProject(
+    projectId: string,
+    config: ProjectConfig,
+  ): Promise<ProjectContext> {
+    const cached = this.projectContexts.get(projectId);
+    if (cached) return cached;
+
+    const { exit } = createProjectContext(config).fork();
+    const promise = exit.then((result) => {
+      if (result._tag === 'ok') return result.value;
+      this.projectContexts.delete(projectId);
+      throw result._tag === 'err' ? result.error : result.cause;
+    });
+    this.projectContexts.set(projectId, promise);
+    return promise;
+  }
+}

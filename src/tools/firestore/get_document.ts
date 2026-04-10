@@ -1,20 +1,24 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 
-import { AccessService } from '../../access';
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 import { normalizeDocument } from './types';
 
-export class FirestoreGetError extends Data.TaggedError('FirestoreGetError')<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreGetError extends Error {
+  readonly _tag = 'FirestoreGetError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreGetError';
+  }
+}
 
-export class DocumentNotFoundError extends Data.TaggedError(
-  'DocumentNotFoundError',
-)<{
-  readonly path: string;
-}> {}
+export class DocumentNotFoundError extends Error {
+  readonly _tag = 'DocumentNotFoundError' as const;
+  constructor(readonly path: string) {
+    super(`Document not found: ${path}`);
+    this.name = 'DocumentNotFoundError';
+  }
+}
 
 export const GET_DOCUMENT = 'get_document' as const;
 
@@ -48,40 +52,31 @@ export const getDocumentDefinition: Tool = {
   },
 };
 
-export const getDocument = (input: GetDocumentArgs) =>
-  Effect.gen(function* () {
-    const access = yield* AccessService;
-    yield* access.check(input.path);
+export const getDocument = (ctx: ProjectContext, input: GetDocumentArgs) =>
+  Task.gen(function* () {
+    yield* ctx.checkAccess(input.path);
 
-    const { firestore } = yield* FirebaseService;
+    const db = ctx.firestore();
 
-    const docRef = yield* Effect.try({
-      try: () => firestore().doc(input.path),
+    const docRef = yield* Task.attempt({
+      try: () => db.doc(input.path),
       catch: (cause) =>
-        new FirestoreGetError({
-          message: `Invalid document path: ${input.path}`,
-          cause,
-        }),
+        new FirestoreGetError(`Invalid document path: ${input.path}`, cause),
     });
 
-    const snap = yield* Effect.tryPromise({
+    const snap = yield* Task.attempt({
       try: () =>
         input.select?.length
-          ? firestore()
+          ? db
               .getAll(docRef, { fieldMask: input.select })
               .then((snaps) => snaps[0])
           : docRef.get(),
       catch: (cause) =>
-        new FirestoreGetError({
-          message: `Failed to get document: ${input.path}`,
-          cause,
-        }),
+        new FirestoreGetError(`Failed to get document: ${input.path}`, cause),
     });
 
     if (!snap.exists) {
-      return yield* Effect.fail(
-        new DocumentNotFoundError({ path: input.path }),
-      );
+      return yield* Task.fail(new DocumentNotFoundError(input.path));
     }
 
     return normalizeDocument(snap);

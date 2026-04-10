@@ -1,16 +1,16 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 import admin from 'firebase-admin';
 
-import { AccessService } from '../../access';
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 
-export class FirestoreSchemaError extends Data.TaggedError(
-  'FirestoreSchemaError',
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreSchemaError extends Error {
+  readonly _tag = 'FirestoreSchemaError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreSchemaError';
+  }
+}
 
 export const GET_COLLECTION_SCHEMA = 'get_collection_schema' as const;
 
@@ -69,36 +69,41 @@ export const getCollectionSchemaDefinition: Tool = {
   },
 };
 
-export const getCollectionSchema = (input: GetCollectionSchemaArgs) =>
-  Effect.gen(function* () {
-    const access = yield* AccessService;
-    yield* access.check(input.collection);
+export const getCollectionSchema = (
+  ctx: ProjectContext,
+  input: GetCollectionSchemaArgs,
+) =>
+  Task.gen(function* () {
+    yield* ctx.checkAccess(input.collection);
 
-    const { firestore } = yield* FirebaseService;
-
+    const db = ctx.firestore();
     const total = input.sampleSize ?? 20;
     const half = Math.ceil(total / 2);
 
-    const fromStart = yield* Effect.tryPromise({
-      try: () => firestore().collection(input.collection).limit(half).get(),
+    const fromStart = yield* Task.attempt({
+      try: () => db.collection(input.collection).limit(half).get(),
       catch: (cause) =>
-        new FirestoreSchemaError({
-          message: `Failed to sample collection: ${input.collection}`,
+        new FirestoreSchemaError(
+          `Failed to sample collection: ${input.collection}`,
           cause,
-        }),
+        ),
     });
 
     // Attempt to sample from the end for better coverage.
     // Falls back gracefully if a composite index is not available.
-    const fromEnd = yield* Effect.tryPromise({
+    const fromEnd = yield* Task.attempt({
       try: () =>
-        firestore()
+        db
           .collection(input.collection)
           .orderBy(admin.firestore.FieldPath.documentId(), 'desc')
           .limit(total - half)
           .get()
           .catch(() => null),
-      catch: () => new FirestoreSchemaError({ message: 'fallback' }),
+      catch: (cause) =>
+        new FirestoreSchemaError(
+          `Failed to sample collection from end: ${input.collection}`,
+          cause,
+        ),
     });
 
     // Deduplicate by document ID
@@ -122,7 +127,6 @@ export const getCollectionSchema = (input: GetCollectionSchemaArgs) =>
 
     const totalSampled = docs.length;
 
-    // Build schema: track types seen and presence count per field
     const fieldTypes = new Map<string, Set<string>>();
     const fieldCount = new Map<string, number>();
 

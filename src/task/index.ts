@@ -170,6 +170,10 @@ export class Task<A, E> {
     return new Task<A, never>(() => tryCatch(() => Exit.ok(thunk())));
   }
 
+  static lazy<A, E>(thunk: () => Task<A, E>) {
+    return new Task((signal) => tryCatch(() => thunk().run(signal)));
+  }
+
   static attempt<A, E>(options: {
     try: () => A | PromiseLike<A>;
     catch: (error: unknown) => E;

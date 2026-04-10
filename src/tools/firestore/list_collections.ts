@@ -1,15 +1,15 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 
-import { AccessService } from '../../access';
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 
-export class FirestoreListCollectionsError extends Data.TaggedError(
-  'FirestoreListCollectionsError',
-)<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class FirestoreListCollectionsError extends Error {
+  readonly _tag = 'FirestoreListCollectionsError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'FirestoreListCollectionsError';
+  }
+}
 
 export const LIST_COLLECTIONS = 'list_collections' as const;
 
@@ -44,31 +44,33 @@ export const listCollectionsDefinition: Tool = {
   },
 };
 
-export const listCollections = (input: ListCollectionsArgs) =>
-  Effect.gen(function* () {
-    const { firestore } = yield* FirebaseService;
+export const listCollections = (
+  ctx: ProjectContext,
+  input: ListCollectionsArgs,
+) =>
+  Task.gen(function* () {
+    const db = ctx.firestore();
 
     if (input.path) {
-      const access = yield* AccessService;
-      yield* access.check(input.path);
+      yield* ctx.checkAccess(input.path);
     }
 
-    const collections = yield* Effect.tryPromise({
+    const collections = yield* Task.attempt({
       try: () =>
         input.path
-          ? firestore().doc(input.path).listCollections()
-          : firestore().listCollections(),
+          ? db.doc(input.path).listCollections()
+          : db.listCollections(),
       catch: (cause) =>
-        new FirestoreListCollectionsError({
-          message: input.path
+        new FirestoreListCollectionsError(
+          input.path
             ? `Failed to list subcollections of: ${input.path}`
             : 'Failed to list root collections',
           cause,
-        }),
+        ),
     });
 
     if (input.includeCounts) {
-      const results = yield* Effect.tryPromise({
+      const results = yield* Task.attempt({
         try: () =>
           Promise.all(
             collections.map(async (col) => {
@@ -77,10 +79,10 @@ export const listCollections = (input: ListCollectionsArgs) =>
             }),
           ),
         catch: (cause) =>
-          new FirestoreListCollectionsError({
-            message: 'Failed to get counts for collections',
+          new FirestoreListCollectionsError(
+            'Failed to get counts for collections',
             cause,
-          }),
+          ),
       });
       return results;
     }

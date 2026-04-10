@@ -1,6 +1,6 @@
 # firebase-mcp
 
-A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that exposes Firebase Firestore and Authentication to AI agents. Built with [Effect](https://effect.website) and the Firebase Admin SDK, it runs over stdio and is designed to be wired directly into any MCP-compatible host (Cursor, Claude Desktop, etc.).
+A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that exposes Firebase Firestore and Authentication to AI agents. Built with the Firebase Admin SDK, it runs over stdio and is designed to be wired directly into any MCP-compatible host (Cursor, Claude Desktop, etc.).
 
 ## Features
 
@@ -33,10 +33,10 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 
 ### Auth
 
-| Tool         | Description                                                              |
-| ------------ | ------------------------------------------------------------------------ |
-| `get_user`   | Fetch a Firebase Auth user by UID or email.                              |
-| `list_users` | List Firebase Auth users with optional pagination via `nextPageToken`.   |
+| Tool         | Description                                                            |
+| ------------ | ---------------------------------------------------------------------- |
+| `get_user`   | Fetch a Firebase Auth user by UID or email.                            |
+| `list_users` | List Firebase Auth users with optional pagination via `nextPageToken`. |
 
 ## Requirements
 
@@ -112,12 +112,7 @@ Add to your MCP config (e.g. `.cursor/mcp.json`):
   "mcpServers": {
     "firebase": {
       "command": "npx",
-      "args": [
-        "-y",
-        "firebase-mcp",
-        "--config",
-        "/path/to/firebase-mcp.json"
-      ]
+      "args": ["-y", "firebase-mcp", "--config", "/path/to/firebase-mcp.json"]
     }
   }
 }

@@ -1,26 +1,20 @@
 import { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Effect } from 'effect';
 
+import type { ProjectContext } from '../project';
+import { Task } from '../task';
 import * as AuthTool from './auth';
 import * as ConfigTool from './config';
 import * as FirestoreTool from './firestore';
 
 export { GET_CONFIG, getConfig, RELOAD_CONFIG, reloadConfig } from './config';
 
-type ToolNames =
-  | typeof FirestoreTool.AGGREGATE_COLLECTION
-  | typeof FirestoreTool.COUNT_DOCUMENTS
-  | typeof FirestoreTool.GET_COLLECTION_SCHEMA
-  | typeof FirestoreTool.GET_MANY_DOCUMENTS
-  | typeof FirestoreTool.LIST_INDEXES
-  | typeof FirestoreTool.READ_COLLECTION
-  | typeof FirestoreTool.GET_DOCUMENT
-  | typeof FirestoreTool.LIST_COLLECTIONS
-  | typeof FirestoreTool.LIST_DOCUMENTS
-  | typeof FirestoreTool.QUERY_COLLECTION
-  | typeof FirestoreTool.QUERY_COLLECTION_GROUP
-  | typeof AuthTool.GET_USER
-  | typeof AuthTool.LIST_USERS;
+class UnknownToolError extends Error {
+  readonly _tag = 'UnknownTool' as const;
+  constructor(readonly toolName: string) {
+    super(`Unknown tool: ${toolName}`);
+    this.name = 'UnknownToolError';
+  }
+}
 
 export const allToolDefinitions: Tool[] = [
   ConfigTool.getConfigDefinition,
@@ -62,70 +56,86 @@ const toSuccessResult = (data: unknown): CallToolResult => ({
 });
 
 export const dispatchTool = (
-  name: ToolNames | (string & {}),
+  ctx: ProjectContext,
+  name: string,
   args: Record<string, unknown>,
-) =>
-  Effect.gen(function* () {
+): Task<CallToolResult, never> =>
+  Task.gen(function* () {
     switch (name) {
       case FirestoreTool.AGGREGATE_COLLECTION:
         return yield* FirestoreTool.aggregateCollection(
+          ctx,
           args as unknown as FirestoreTool.AggregateCollectionArgs,
         );
       case FirestoreTool.COUNT_DOCUMENTS:
         return yield* FirestoreTool.countDocuments(
+          ctx,
           args as unknown as FirestoreTool.CountDocumentsArgs,
         );
       case FirestoreTool.GET_COLLECTION_SCHEMA:
         return yield* FirestoreTool.getCollectionSchema(
+          ctx,
           args as unknown as FirestoreTool.GetCollectionSchemaArgs,
         );
       case FirestoreTool.GET_MANY_DOCUMENTS:
         return yield* FirestoreTool.getManyDocuments(
+          ctx,
           args as unknown as FirestoreTool.GetManyDocumentsArgs,
         );
       case FirestoreTool.LIST_INDEXES:
         return yield* FirestoreTool.listIndexes(
+          ctx,
           args as unknown as FirestoreTool.ListIndexesArgs,
         );
       case FirestoreTool.QUERY_COLLECTION_GROUP:
         return yield* FirestoreTool.queryCollectionGroup(
+          ctx,
           args as unknown as FirestoreTool.QueryCollectionGroupArgs,
         );
       case FirestoreTool.LIST_COLLECTIONS:
         return yield* FirestoreTool.listCollections(
+          ctx,
           args as unknown as FirestoreTool.ListCollectionsArgs,
         );
       case FirestoreTool.LIST_DOCUMENTS:
         return yield* FirestoreTool.listDocuments(
+          ctx,
           args as unknown as FirestoreTool.ListDocumentsArgs,
         );
       case FirestoreTool.READ_COLLECTION:
         return yield* FirestoreTool.readCollection(
+          ctx,
           args as unknown as FirestoreTool.ReadCollectionArgs,
         );
       case FirestoreTool.GET_DOCUMENT:
         return yield* FirestoreTool.getDocument(
+          ctx,
           args as unknown as FirestoreTool.GetDocumentArgs,
         );
       case FirestoreTool.QUERY_COLLECTION:
         return yield* FirestoreTool.queryCollection(
+          ctx,
           args as unknown as FirestoreTool.QueryCollectionArgs,
         );
       case AuthTool.GET_USER:
-        return yield* AuthTool.getUser(args as unknown as AuthTool.GetUserArgs);
+        return yield* AuthTool.getUser(
+          ctx,
+          args as unknown as AuthTool.GetUserArgs,
+        );
       case AuthTool.LIST_USERS:
         return yield* AuthTool.listUsers(
+          ctx,
           args as unknown as AuthTool.ListUsersArgs,
         );
       default:
-        return yield* Effect.fail({ _tag: 'UnknownTool' as const, name });
+        return yield* Task.fail(new UnknownToolError(name));
     }
-  }).pipe(
-    Effect.map(toSuccessResult),
-    Effect.catchAll((err) => {
+  })
+    .map(toSuccessResult)
+    .catchAll((err): Task<CallToolResult, never> => {
       switch (err._tag) {
         case 'AccessDeniedError':
-          return Effect.succeed(
+          return Task.succeed(
             toErrorResult(
               'ACCESS_DENIED',
               `Access to path '${err.path}' is not allowed`,
@@ -133,7 +143,7 @@ export const dispatchTool = (
             ),
           );
         case 'DocumentNotFoundError':
-          return Effect.succeed(
+          return Task.succeed(
             toErrorResult('NOT_FOUND', `Document not found: ${err.path}`, {
               path: err.path,
             }),
@@ -149,28 +159,27 @@ export const dispatchTool = (
         case 'FirestoreGetManyError':
         case 'FirestoreListIndexesError':
         case 'FirestoreCollectionGroupQueryError':
-          return Effect.succeed(
+          return Task.succeed(
             toErrorResult('FIRESTORE_ERROR', err.message, {
               cause: String(err.cause),
             }),
           );
         case 'AuthGetUserError':
         case 'AuthListUsersError':
-          return Effect.succeed(
+          return Task.succeed(
             toErrorResult('AUTH_ERROR', err.message, {
               cause: String(err.cause),
             }),
           );
         case 'AuthUserNotFoundError':
-          return Effect.succeed(
+          return Task.succeed(
             toErrorResult('NOT_FOUND', `User not found: ${err.identifier}`, {
               identifier: err.identifier,
             }),
           );
         case 'UnknownTool':
-          return Effect.succeed(
-            toErrorResult('UNKNOWN_TOOL', `Unknown tool: ${err.name}`),
+          return Task.succeed(
+            toErrorResult('UNKNOWN_TOOL', `Unknown tool: ${err.toolName}`),
           );
       }
-    }),
-  );
+    });

@@ -1,19 +1,24 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { Data, Effect } from 'effect';
 
-import { FirebaseService } from '../../firebase';
+import type { ProjectContext } from '../../project';
+import { Task } from '../../task';
 import { normalizeValue } from '../normalize';
 
-export class AuthGetUserError extends Data.TaggedError('AuthGetUserError')<{
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
+export class AuthGetUserError extends Error {
+  readonly _tag = 'AuthGetUserError' as const;
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = 'AuthGetUserError';
+  }
+}
 
-export class AuthUserNotFoundError extends Data.TaggedError(
-  'AuthUserNotFoundError',
-)<{
-  readonly identifier: string;
-}> {}
+export class AuthUserNotFoundError extends Error {
+  readonly _tag = 'AuthUserNotFoundError' as const;
+  constructor(readonly identifier: string) {
+    super(`User not found: ${identifier}`);
+    this.name = 'AuthUserNotFoundError';
+  }
+}
 
 export const GET_USER = 'get_user' as const;
 
@@ -46,23 +51,19 @@ export const getUserDefinition: Tool = {
   },
 };
 
-export const getUser = (input: GetUserArgs) =>
-  Effect.gen(function* () {
+export const getUser = (ctx: ProjectContext, input: GetUserArgs) =>
+  Task.gen(function* () {
     if (!input.uid && !input.email) {
-      return yield* Effect.fail(
-        new AuthGetUserError({
-          message: 'Either uid or email must be provided',
-        }),
+      return yield* Task.fail(
+        new AuthGetUserError('Either uid or email must be provided'),
       );
     }
 
-    const { auth } = yield* FirebaseService;
+    const auth = ctx.auth();
 
-    const userRecord = yield* Effect.tryPromise({
+    const userRecord = yield* Task.attempt({
       try: () =>
-        input.uid
-          ? auth().getUser(input.uid)
-          : auth().getUserByEmail(input.email!),
+        input.uid ? auth.getUser(input.uid) : auth.getUserByEmail(input.email!),
       catch: (cause: unknown) => {
         const code =
           cause != null &&
@@ -73,15 +74,13 @@ export const getUser = (input: GetUserArgs) =>
             : '';
 
         if (code === 'auth/user-not-found') {
-          return new AuthUserNotFoundError({
-            identifier: input.uid ?? input.email ?? '',
-          });
+          return new AuthUserNotFoundError(input.uid ?? input.email ?? '');
         }
 
-        return new AuthGetUserError({
-          message: `Failed to fetch user: ${input.uid ?? input.email}`,
+        return new AuthGetUserError(
+          `Failed to fetch user: ${input.uid ?? input.email}`,
           cause,
-        });
+        );
       },
     });
 
