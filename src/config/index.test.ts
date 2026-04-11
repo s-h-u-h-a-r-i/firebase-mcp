@@ -1,6 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 
-import { ProjectConfigSchema } from './index';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  ConfigError,
+  ProjectConfigSchema,
+  getConfigPath,
+  loadConfig,
+} from './index';
+
+vi.mock('node:fs');
 
 // ---------------------------------------------------------------------------
 // ProjectConfigSchema — the innermost validated unit, no file I/O needed
@@ -104,5 +113,163 @@ describe('ProjectConfigSchema', () => {
     expect(ProjectConfigSchema.safeParse(null).success).toBe(false);
     expect(ProjectConfigSchema.safeParse(undefined).success).toBe(false);
     expect(ProjectConfigSchema.safeParse('string').success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ConfigError
+// ---------------------------------------------------------------------------
+
+describe('ConfigError', () => {
+  it('sets _tag to ConfigError', () => {
+    const err = new ConfigError('test message');
+    expect(err._tag).toBe('ConfigError');
+  });
+
+  it('sets name to ConfigError', () => {
+    const err = new ConfigError('test message');
+    expect(err.name).toBe('ConfigError');
+  });
+
+  it('sets message correctly', () => {
+    const err = new ConfigError('something went wrong');
+    expect(err.message).toBe('something went wrong');
+  });
+
+  it('accepts an optional cause', () => {
+    const cause = new Error('root cause');
+    const err = new ConfigError('wrapper', cause);
+    expect(err.cause).toBe(cause);
+  });
+
+  it('cause is undefined when not provided', () => {
+    const err = new ConfigError('no cause');
+    expect(err.cause).toBeUndefined();
+  });
+
+  it('is an instance of Error', () => {
+    expect(new ConfigError('x')).toBeInstanceOf(Error);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// loadConfig
+// ---------------------------------------------------------------------------
+
+const validAppConfigJson = JSON.stringify({
+  projects: {
+    'my-project': {
+      firebase: {
+        projectId: 'my-project',
+        serviceAccountPath: '/path/to/sa.json',
+      },
+      firestore: {
+        rules: { allow: ['**'], deny: [] },
+      },
+    },
+  },
+});
+
+async function runTask<A, E>(task: import('../task').Task<A, E>) {
+  const { exit } = task.fork();
+  return exit;
+}
+
+describe('loadConfig', () => {
+  beforeEach(() => {
+    vi.mocked(readFileSync).mockReturnValue(validAppConfigJson);
+  });
+
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('returns AppConfig on a valid config file', async () => {
+    const result = await runTask(loadConfig('/fake/firebase-mcp.json'));
+    expect(result._tag).toBe('ok');
+    if (result._tag === 'ok') {
+      expect(result.value.projects['my-project'].firebase.projectId).toBe(
+        'my-project',
+      );
+    }
+  });
+
+  it('applies schema defaults inside loadConfig result', async () => {
+    const result = await runTask(loadConfig('/fake/firebase-mcp.json'));
+    expect(result._tag).toBe('ok');
+    if (result._tag === 'ok') {
+      const proj = result.value.projects['my-project'];
+      expect(proj.firestore.maxCollectionReadSize).toBe(100);
+      expect(proj.firestore.maxBatchFetchSize).toBe(200);
+    }
+  });
+
+  it('returns a ConfigError when the file cannot be read', async () => {
+    vi.mocked(readFileSync).mockImplementation(() => {
+      throw new Error('ENOENT: no such file or directory');
+    });
+    const result = await runTask(loadConfig('/nonexistent.json'));
+    expect(result._tag).toBe('err');
+    if (result._tag === 'err') {
+      expect(result.error).toBeInstanceOf(ConfigError);
+      expect(result.error.message).toContain('/nonexistent.json');
+    }
+  });
+
+  it('returns a ConfigError when the file contains invalid JSON', async () => {
+    vi.mocked(readFileSync).mockReturnValue('not valid json {{');
+    const result = await runTask(loadConfig('/bad.json'));
+    expect(result._tag).toBe('err');
+    if (result._tag === 'err') {
+      expect(result.error).toBeInstanceOf(ConfigError);
+    }
+  });
+
+  it('returns a ConfigError with "Config validation failed" when schema is invalid', async () => {
+    vi.mocked(readFileSync).mockReturnValue(
+      JSON.stringify({ projects: { bad: {} } }),
+    );
+    const result = await runTask(loadConfig('/invalid-schema.json'));
+    expect(result._tag).toBe('err');
+    if (result._tag === 'err') {
+      expect(result.error).toBeInstanceOf(ConfigError);
+      expect(result.error.message).toBe('Config validation failed');
+    }
+  });
+
+  it('passes a ConfigError thrown in try directly through the catch without re-wrapping', async () => {
+    // Schema validation failure throws a ConfigError, which the catch clause
+    // detects via instanceof and returns as-is (no double-wrapping).
+    vi.mocked(readFileSync).mockReturnValue(
+      JSON.stringify({ projects: { p: { firebase: {} } } }),
+    );
+    const result = await runTask(loadConfig('/path.json'));
+    expect(result._tag).toBe('err');
+    if (result._tag === 'err') {
+      expect(result.error._tag).toBe('ConfigError');
+      expect(result.error.message).toBe('Config validation failed');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getConfigPath
+// ---------------------------------------------------------------------------
+
+describe('getConfigPath', () => {
+  const originalArgv = process.argv;
+
+  afterEach(() => {
+    process.argv = originalArgv;
+  });
+
+  it('returns the value of --config when provided', () => {
+    process.argv = ['node', 'script.js', '--config', '/custom/config.json'];
+    expect(getConfigPath()).toBe('/custom/config.json');
+  });
+
+  it('falls back to ./firebase-mcp.json when --config is absent', () => {
+    process.argv = ['node', 'script.js'];
+    expect(getConfigPath()).toBe('./firebase-mcp.json');
   });
 });

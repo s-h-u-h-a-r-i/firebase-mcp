@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Exit, Task } from './index';
 
@@ -269,6 +269,30 @@ describe('Task#catchWhen', () => {
     expect(Exit.isErr(exitB)).toBe(true);
     if (Exit.isErr(exitB)) expect(exitB.error).toEqual({ _tag: 'B' });
   });
+
+  it('passes ok through without running the handler', async () => {
+    let ran = false;
+    const exit = await run(
+      Task.succeed(1).catchWhen('_tag', 'A' as never, () => {
+        ran = true;
+        return Task.succeed(2);
+      }),
+    );
+    expect(ran).toBe(false);
+    expect(Exit.isOk(exit)).toBe(true);
+  });
+
+  it('passes die through without running the handler', async () => {
+    let ran = false;
+    const exit = await run(
+      Task.die('fatal').catchWhen('_tag', 'A' as never, () => {
+        ran = true;
+        return Task.succeed('recovered');
+      }),
+    );
+    expect(ran).toBe(false);
+    expect(Exit.isDie(exit)).toBe(true);
+  });
 });
 
 describe('Task#filter', () => {
@@ -285,6 +309,25 @@ describe('Task#filter', () => {
     );
     expect(Exit.isErr(exit)).toBe(true);
     if (Exit.isErr(exit)) expect(exit.error).toBe('3 is too small');
+  });
+
+  it('passes err through without evaluating the predicate', async () => {
+    let ran = false;
+    const exit = await run(
+      Task.fail('original').filter(() => { ran = true; return true; }, () => 'filtered'),
+    );
+    expect(ran).toBe(false);
+    expect(Exit.isErr(exit)).toBe(true);
+    if (Exit.isErr(exit)) expect(exit.error).toBe('original');
+  });
+
+  it('passes die through without evaluating the predicate', async () => {
+    let ran = false;
+    const exit = await run(
+      Task.die('fatal').filter(() => { ran = true; return true; }, () => 'filtered'),
+    );
+    expect(ran).toBe(false);
+    expect(Exit.isDie(exit)).toBe(true);
   });
 });
 
@@ -346,6 +389,23 @@ describe('Task.gen', () => {
     expect(Exit.isOk(exit)).toBe(true);
     if (Exit.isOk(exit)) expect(exit.value).toBe(30);
   });
+
+  it('returns die when signal is aborted between gen steps', async () => {
+    const controller = new AbortController();
+    let reachedSecond = false;
+
+    const exit = await Task.gen(function* () {
+      yield* Task.succeed(1);
+      controller.abort('mid-gen');
+      yield* Task.succeed(2);
+      reachedSecond = true;
+      return 'done';
+    }).run(controller.signal);
+
+    expect(reachedSecond).toBe(false);
+    expect(Exit.isDie(exit)).toBe(true);
+    if (Exit.isDie(exit)) expect(exit.cause).toBe('mid-gen');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -365,5 +425,28 @@ describe('Task#fork / abort', () => {
     const result = await exit;
     abort();
     expect(Exit.isOk(result)).toBe(true);
+  });
+
+  it('run with a pre-aborted signal resolves to die immediately', async () => {
+    const controller = new AbortController();
+    controller.abort('pre-aborted');
+    const exit = await Task.succeed(1).run(controller.signal);
+    expect(Exit.isDie(exit)).toBe(true);
+    if (Exit.isDie(exit)) expect(exit.cause).toBe('pre-aborted');
+  });
+});
+
+describe('Task.never', () => {
+  it('setInterval keepalive callback fires but is a no-op', async () => {
+    vi.useFakeTimers();
+    try {
+      const { exit, abort } = Task.never().fork();
+      vi.advanceTimersByTime(2 ** 31 - 1);
+      abort();
+      const result = await exit;
+      expect(Exit.isDie(result)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
