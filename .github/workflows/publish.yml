@@ -24,6 +24,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: npm version ${{ github.ref_name }} --no-git-tag-version
+
       - run: pnpm build
 
       - run: npm pkg delete devDependencies
