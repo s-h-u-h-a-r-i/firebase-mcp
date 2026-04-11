@@ -16,13 +16,12 @@ export const LIST_DOCUMENTS = 'list_documents' as const;
 
 export interface ListDocumentsArgs {
   collection: string;
-  includeCollections?: boolean;
 }
 
 export const listDocumentsDefinition: Tool = {
   name: LIST_DOCUMENTS,
   description:
-    'List all document IDs in a Firestore collection, including phantom documents (documents with no fields that exist only as parents of subcollections). Use this when read_collection returns empty but subcollections are known to exist.',
+    'List all document IDs in a Firestore collection, including phantom documents (documents with no fields that exist only as parents of subcollections). Always includes subcollections per document. Use this when read_collection returns empty but subcollections are known to exist.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -30,11 +29,6 @@ export const listDocumentsDefinition: Tool = {
         type: 'string',
         description:
           "Collection path, e.g. 'users' or 'shared/stores_data/ABC123'",
-      },
-      includeCollections: {
-        type: 'boolean',
-        description:
-          'If true, also lists the subcollections of each document alongside its ID. Useful when exploring unknown structure to avoid a follow-up list_collections call per document.',
       },
       projectId: {
         type: 'string',
@@ -64,27 +58,23 @@ export const listDocuments = (ctx: ProjectContext, input: ListDocumentsArgs) =>
         ),
     });
 
-    if (input.includeCollections) {
-      const results = yield* Task.attempt({
-        try: () =>
-          Promise.all(
-            refs.map(async (ref) => {
-              const collections = await ref.listCollections();
-              return {
-                id: ref.id,
-                path: ref.path,
-                collections: collections.map((c) => c.id),
-              };
-            }),
-          ),
-        catch: (cause) =>
-          new FirestoreListDocumentsError(
-            `Failed to list subcollections in: ${input.collection}`,
-            cause,
-          ),
-      });
-      return results;
-    }
-
-    return refs.map((ref) => ({ id: ref.id, path: ref.path }));
+    const results = yield* Task.attempt({
+      try: () =>
+        Promise.all(
+          refs.map(async (ref) => {
+            const collections = await ref.listCollections();
+            return {
+              id: ref.id,
+              path: ref.path,
+              collections: collections.map((c) => c.path),
+            };
+          }),
+        ),
+      catch: (cause) =>
+        new FirestoreListDocumentsError(
+          `Failed to list subcollections in: ${input.collection}`,
+          cause,
+        ),
+    });
+    return results;
   });

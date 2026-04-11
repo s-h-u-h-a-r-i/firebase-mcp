@@ -121,7 +121,7 @@ export const firestoreReadDefinition: Tool = {
           '',
           'The Firestore operation to perform:',
           '- list_collections: List root collections, or subcollections of a document. Args: path?(EVEN segments — document path, e.g. "stores/ABC"), includeCounts?(bool). Returns collection paths (ODD segments) → use with list_documents or read_collection.',
-          '- list_documents: List all doc IDs including phantoms. Args: collection(ODD segments), includeCollections?(bool). Returns document paths (EVEN segments) → use with get_document or list_collections.',
+          '- list_documents: List all doc IDs including phantoms. Always includes subcollections per doc. Args: collection(ODD segments). Returns document paths (EVEN segments) with collections[] → use with get_document or list_collections.',
           '- read_collection: Read documents from a collection. Args: collection(ODD segments), limit?, select?[], startAfter?(doc ID), includePhantoms?(bool)',
           '- get_document: Fetch a single document by path. Args: path(EVEN segments, e.g. "users/123"), select?[]',
           '- get_many_documents: Batch-fetch documents. Args: paths?[](each EVEN segments) OR (collection(ODD segments) + ids[]); select?[]',
@@ -210,10 +210,6 @@ export const firestoreReadDefinition: Tool = {
           required: ['alias', 'type'],
         },
         description: 'Aggregations for aggregate_collection',
-      },
-      includeCollections: {
-        type: 'boolean',
-        description: 'list_documents: also return subcollections of each doc',
       },
       includeCounts: {
         type: 'boolean',

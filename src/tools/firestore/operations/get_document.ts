@@ -7,7 +7,10 @@ import { normalizeDocument } from '../utils/types';
 
 export class FirestoreGetError extends Error {
   readonly _tag = 'FirestoreGetError' as const;
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'FirestoreGetError';
   }
@@ -69,13 +72,16 @@ export const getDocument = (ctx: ProjectContext, input: GetDocumentArgs) =>
         new FirestoreGetError(`Invalid document path: ${input.path}`, cause),
     });
 
-    const snap = yield* Task.attempt({
+    const [snap, subcollections] = yield* Task.attempt({
       try: () =>
-        input.select?.length
-          ? db
-              .getAll(docRef, { fieldMask: input.select })
-              .then((snaps) => snaps[0])
-          : docRef.get(),
+        Promise.all([
+          input.select?.length
+            ? db
+                .getAll(docRef, { fieldMask: input.select })
+                .then((snaps) => snaps[0])
+            : docRef.get(),
+          docRef.listCollections(),
+        ]),
       catch: (cause) =>
         new FirestoreGetError(`Failed to get document: ${input.path}`, cause),
     });
@@ -84,5 +90,8 @@ export const getDocument = (ctx: ProjectContext, input: GetDocumentArgs) =>
       return yield* Task.fail(new DocumentNotFoundError(input.path));
     }
 
-    return normalizeDocument(snap);
+    return {
+      ...normalizeDocument(snap),
+      collections: subcollections.map((c) => c.path),
+    };
   });
