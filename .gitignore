@@ -2,6 +2,10 @@ node_modules
 dist
 .pnpm-store/
 
+# Coverage
+coverage/
+*.lcov
+
 # Environment & credentials
 .env
 .env.*
