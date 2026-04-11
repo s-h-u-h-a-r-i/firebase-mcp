@@ -4,39 +4,53 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 
 ## Features
 
-- **11 Firestore read tools** covering collections, documents, queries, aggregations, and schema inference
-- **2 Firebase Auth tools** — look up users by UID or email, list users with pagination
+- **12 Firestore read operations** covering collections, documents, queries, aggregations, distinct value counts, and schema inference
+- **2 Firebase Auth operations** — look up users by UID or email, list users with pagination
+- **Multi-project support** — configure multiple Firebase projects in one config file; each tool call targets a specific project via `projectId`
 - **Glob-based access control** — allow/deny rules evaluated per Firestore path before any read is performed
 - **Pagination** on `query_collection`, `read_collection`, and `list_users` via cursor-based tokens
 - **Batch fetching** with configurable `maxBatchFetchSize`
 - **Schema inference** via `get_collection_schema` — samples documents and infers field types without reading the full collection
+- **Distinct value counts** via `distinct_values` — count occurrences of unique field values across a collection or collection group
 - **Normalized output** — Firestore Timestamps, GeoPoints, and DocumentReferences are converted to JSON-serializable values on all tools
 - Zero runtime state — each tool call hits Firebase directly through the Admin SDK
 
 ## Tools
 
-### Firestore
+### Config
 
-| Tool                     | Description                                                                                                 |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `list_collections`       | List root collections or subcollections of a document. Optionally include document counts.                  |
-| `list_documents`         | List all document IDs in a collection, including phantom documents. Optionally include subcollection names. |
-| `read_collection`        | Read documents from a collection with optional phantom-doc surfacing.                                       |
-| `get_document`           | Fetch a single document by path.                                                                            |
-| `get_many_documents`     | Batch-fetch documents by a list of paths or a collection + ID list.                                         |
-| `query_collection`       | Query with filters, ordering, limit, and pagination.                                                        |
-| `query_collection_group` | Query across all collections sharing the same name, regardless of parent path.                              |
-| `count_documents`        | Server-side document count with optional filters.                                                           |
-| `aggregate_collection`   | Native `sum()` and `avg()` aggregations without fetching documents.                                         |
-| `get_collection_schema`  | Sample a collection from both ends and infer field types.                                                   |
-| `list_indexes`           | List Firestore indexes for the project.                                                                     |
+| Tool            | Description                                                                                                                 |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `get_config`    | Returns the current in-memory config, listing all available projects. Call this first to discover valid `projectId` values. |
+| `reload_config` | Re-reads `firebase-mcp.json` from disk and evicts all cached project runtimes.                                              |
 
-### Auth
+### Firestore (`firestore_read`)
 
-| Tool         | Description                                                            |
-| ------------ | ---------------------------------------------------------------------- |
-| `get_user`   | Fetch a Firebase Auth user by UID or email.                            |
-| `list_users` | List Firebase Auth users with optional pagination via `nextPageToken`. |
+All operations are dispatched through the single `firestore_read` tool via the `operation` field. Every call requires a `projectId` matching a key in `firebase-mcp.json`.
+
+| Operation                | Description                                                                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `list_collections`       | List root collections or subcollections of a document. Optionally include document counts.                                   |
+| `list_documents`         | List all document IDs in a collection, including phantom documents. Optionally include subcollection names.                  |
+| `read_collection`        | Read documents from a collection with optional phantom-doc surfacing.                                                        |
+| `get_document`           | Fetch a single document by path.                                                                                             |
+| `get_many_documents`     | Batch-fetch documents by a list of paths or a collection + ID list.                                                          |
+| `query_collection`       | Query with filters, ordering, limit, and pagination.                                                                         |
+| `query_collection_group` | Query across all collections sharing the same name, regardless of parent path.                                               |
+| `count_documents`        | Server-side document count with optional filters.                                                                            |
+| `aggregate_collection`   | Native `sum()`, `avg()`, and `count()` aggregations without fetching documents.                                              |
+| `get_collection_schema`  | Sample a collection from both ends and infer field types.                                                                    |
+| `list_indexes`           | List Firestore composite indexes for the project.                                                                            |
+| `distinct_values`        | Count occurrences of each unique value (or value combination) of one or more fields across a collection or collection group. |
+
+### Auth (`auth_read`)
+
+All operations are dispatched through the single `auth_read` tool via the `operation` field. Every call requires a `projectId`.
+
+| Operation    | Description                                                        |
+| ------------ | ------------------------------------------------------------------ |
+| `get_user`   | Fetch a Firebase Auth user by UID or email.                        |
+| `list_users` | List Firebase Auth users with optional pagination via `pageToken`. |
 
 ## Requirements
 
@@ -48,26 +62,43 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 
 **1. Create `firebase-mcp.json`**
 
+The config supports multiple projects under a `projects` key. Each key becomes the `projectId` value you pass to tool calls.
+
 ```json
 {
-  "firebase": {
-    "projectId": "your-project-id",
-    "serviceAccountPath": "secrets/serviceAccount.json"
-  },
-  "firestore": {
-    "rules": {
-      "allow": ["**"],
-      "deny": []
-    },
-    "maxCollectionReadSize": 10,
-    "maxBatchFetchSize": 200
+  "projects": {
+    "my-app": {
+      "firebase": {
+        "projectId": "your-firebase-project-id",
+        "serviceAccountPath": "secrets/serviceAccount.json"
+      },
+      "firestore": {
+        "rules": {
+          "allow": ["**"],
+          "deny": []
+        },
+        "maxCollectionReadSize": 100,
+        "maxBatchFetchSize": 200
+      }
+    }
+  }
+}
+```
+
+To configure multiple projects, add additional keys under `projects`:
+
+```json
+{
+  "projects": {
+    "prod": { "firebase": { ... }, "firestore": { ... } },
+    "staging": { "firebase": { ... }, "firestore": { ... } }
   }
 }
 ```
 
 **2. Add your service account key**
 
-Place your Firebase service account JSON at any path you prefer — you'll reference it in `firebase-mcp.json` above.
+Place your Firebase service account JSON at any path you prefer — you'll reference it in `firebase-mcp.json` above. Paths are resolved relative to the working directory when the server starts, or you can use an absolute path.
 
 **3. Wire it into your MCP host**
 
@@ -75,14 +106,15 @@ See the [Connecting to Cursor](#connecting-to-cursor) section below — no insta
 
 ## Configuration
 
-| Field                             | Type       | Default | Description                                                |
-| --------------------------------- | ---------- | ------- | ---------------------------------------------------------- |
-| `firebase.projectId`              | `string`   | —       | Firebase project ID                                        |
-| `firebase.serviceAccountPath`     | `string`   | —       | Path to service account JSON (relative to CWD or absolute) |
-| `firestore.rules.allow`           | `string[]` | —       | Glob patterns for allowed Firestore paths                  |
-| `firestore.rules.deny`            | `string[]` | —       | Glob patterns for denied Firestore paths (evaluated first) |
-| `firestore.maxCollectionReadSize` | `number`   | `10`    | Default document limit for collection reads                |
-| `firestore.maxBatchFetchSize`     | `number`   | `200`   | Maximum documents per batch fetch                          |
+| Field                                            | Type       | Default | Description                                                |
+| ------------------------------------------------ | ---------- | ------- | ---------------------------------------------------------- |
+| `projects`                                       | `object`   | —       | Map of project keys to project configs                     |
+| `projects.<key>.firebase.projectId`              | `string`   | —       | Firebase project ID                                        |
+| `projects.<key>.firebase.serviceAccountPath`     | `string`   | —       | Path to service account JSON (relative to CWD or absolute) |
+| `projects.<key>.firestore.rules.allow`           | `string[]` | —       | Glob patterns for allowed Firestore paths                  |
+| `projects.<key>.firestore.rules.deny`            | `string[]` | —       | Glob patterns for denied Firestore paths (evaluated first) |
+| `projects.<key>.firestore.maxCollectionReadSize` | `number`   | `100`   | Default document limit for collection reads                |
+| `projects.<key>.firestore.maxBatchFetchSize`     | `number`   | `200`   | Maximum documents per batch fetch                          |
 
 A custom config path can be passed at startup:
 
@@ -119,6 +151,8 @@ Add to your MCP config (e.g. `.cursor/mcp.json`):
 ```
 
 `npx -y` will download and cache the package automatically on first run. No manual installation needed.
+
+`firestore_read` and `auth_read` are safe to add to Cursor's tool allowlist for unattended use. `get_config` and `reload_config` are also read-only and safe to allowlist.
 
 ## License
 

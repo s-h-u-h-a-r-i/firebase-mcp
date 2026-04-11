@@ -1,6 +1,6 @@
 {
   "name": "firebase-mcp",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "MCP server that exposes Firebase Firestore to AI agents (Cursor, Claude Desktop, etc.)",
   "main": "dist/cli/index.js",
   "bin": {
