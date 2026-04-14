@@ -1,12 +1,13 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
-
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
 import { normalizeValue } from '../../normalize';
 
 export class AuthGetUserError extends Error {
   readonly _tag = 'AuthGetUserError' as const;
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'AuthGetUserError';
   }
@@ -25,45 +26,29 @@ export const GET_USER = 'get_user' as const;
 export interface GetUserArgs {
   uid?: string;
   email?: string;
+  phoneNumber?: string;
 }
-
-export const getUserDefinition: Tool = {
-  name: GET_USER,
-  description:
-    'Fetch a Firebase Auth user by UID or email. Exactly one of uid or email must be provided.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      uid: {
-        type: 'string',
-        description: 'The Firebase Auth UID of the user.',
-      },
-      email: {
-        type: 'string',
-        description: 'The email address of the user.',
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-    },
-    required: ['projectId'],
-  },
-};
 
 export const getUser = (ctx: ProjectContext, input: GetUserArgs) =>
   Task.gen(function* () {
-    if (!input.uid && !input.email) {
+    if (!input.uid && !input.email && !input.phoneNumber) {
       return yield* Task.fail(
-        new AuthGetUserError('Either uid or email must be provided'),
+        new AuthGetUserError(
+          'Exactly one of uid, email, or phoneNumber must be provided',
+        ),
       );
     }
 
     const auth = ctx.auth();
 
+    const identifier = input.uid ?? input.email ?? input.phoneNumber!;
+
     const userRecord = yield* Task.attempt({
-      try: () =>
-        input.uid ? auth.getUser(input.uid) : auth.getUserByEmail(input.email!),
+      try: () => {
+        if (input.uid) return auth.getUser(input.uid);
+        if (input.email) return auth.getUserByEmail(input.email);
+        return auth.getUserByPhoneNumber(input.phoneNumber!);
+      },
       catch: (cause: unknown) => {
         const code =
           cause != null &&
@@ -74,11 +59,11 @@ export const getUser = (ctx: ProjectContext, input: GetUserArgs) =>
             : '';
 
         if (code === 'auth/user-not-found') {
-          return new AuthUserNotFoundError(input.uid ?? input.email ?? '');
+          return new AuthUserNotFoundError(identifier);
         }
 
         return new AuthGetUserError(
-          `Failed to fetch user: ${input.uid ?? input.email}`,
+          `Failed to fetch user: ${identifier}`,
           cause,
         );
       },

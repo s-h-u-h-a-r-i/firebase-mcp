@@ -1,18 +1,13 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
-
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
-import {
-  FILTER_SCHEMA_ITEM,
-  normalizeDocument,
-  ORDER_BY_SCHEMA_ITEM,
-  QueryFilter,
-  QueryOrderBy,
-} from '../utils/types';
+import { normalizeDocument, QueryFilter, QueryOrderBy } from '../utils/types';
 
 export class FirestoreCollectionGroupQueryError extends Error {
   readonly _tag = 'FirestoreCollectionGroupQueryError' as const;
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'FirestoreCollectionGroupQueryError';
   }
@@ -28,53 +23,6 @@ export interface QueryCollectionGroupArgs {
   select?: string[];
   startAfter?: string;
 }
-
-export const queryCollectionGroupDefinition: Tool = {
-  name: QUERY_COLLECTION_GROUP,
-  description:
-    'Query across all Firestore collections with the same name, regardless of their parent path. Use this to query data across multiple stores or parent documents at once. Check list_indexes first to confirm a collection-group-scoped index exists for any filters or ordering you plan to use.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      collectionId: {
-        type: 'string',
-        description:
-          "The collection name to query across all parents, e.g. 'purchase_orders' or 'stock'.",
-      },
-      filters: {
-        type: 'array',
-        description: 'Optional list of where-clause filters',
-        items: FILTER_SCHEMA_ITEM,
-      },
-      orderBy: {
-        type: 'array',
-        description:
-          'Optional ordering of results. Requires a collection-group index.',
-        items: ORDER_BY_SCHEMA_ITEM,
-      },
-      limit: {
-        type: 'number',
-        description: 'Max number of documents to return',
-      },
-      select: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Optional list of field paths to return. Omit to return all fields.',
-      },
-      startAfter: {
-        type: 'string',
-        description:
-          'Full document path to start after for pagination, e.g. "shared/stores_data/ABC/data/purchase_orders/51721". Use the path from the last document in the previous page.',
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-    },
-    required: ['collectionId', 'projectId'],
-  },
-};
 
 export const queryCollectionGroup = (
   ctx: ProjectContext,

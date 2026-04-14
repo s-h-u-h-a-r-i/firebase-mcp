@@ -1,5 +1,3 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
-
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
 import { collectionPathError } from '../utils/paths';
@@ -7,7 +5,10 @@ import { normalizeDocument } from '../utils/types';
 
 export class FirestoreReadError extends Error {
   readonly _tag = 'FirestoreReadError' as const;
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'FirestoreReadError';
   }
@@ -23,46 +24,10 @@ export interface ReadCollectionArgs {
   startAfter?: string;
 }
 
-export const readCollectionDefinition: Tool = {
-  name: READ_COLLECTION,
-  description: 'Read documents from a Firestore collection',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      collection: {
-        type: 'string',
-        description: "Collection path, e.g. 'users' or 'users/123/posts'",
-      },
-      limit: {
-        type: 'number',
-        description: 'Max number of documents to return',
-      },
-      select: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Optional list of field paths to return. Omit to return all fields.',
-      },
-      includePhantoms: {
-        type: 'boolean',
-        description:
-          'If true and the collection returns no documents, automatically falls back to listDocuments() to surface phantom documents (documents with no fields that exist only as parents of subcollections).',
-      },
-      startAfter: {
-        type: 'string',
-        description:
-          'Document ID to start after for pagination. Use the nextPageCursor value returned from a previous call.',
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-    },
-    required: ['collection', 'projectId'],
-  },
-};
-
-export const readCollection = (ctx: ProjectContext, input: ReadCollectionArgs) =>
+export const readCollection = (
+  ctx: ProjectContext,
+  input: ReadCollectionArgs,
+) =>
   Task.gen(function* () {
     const err = collectionPathError(input.collection);
     if (err) {

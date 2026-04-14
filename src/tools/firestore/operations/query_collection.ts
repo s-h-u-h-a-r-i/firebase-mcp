@@ -1,19 +1,14 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
-
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
 import { collectionPathError } from '../utils/paths';
-import {
-  FILTER_SCHEMA_ITEM,
-  normalizeDocument,
-  ORDER_BY_SCHEMA_ITEM,
-  QueryFilter,
-  QueryOrderBy,
-} from '../utils/types';
+import { normalizeDocument, QueryFilter, QueryOrderBy } from '../utils/types';
 
 export class FirestoreQueryError extends Error {
   readonly _tag = 'FirestoreQueryError' as const;
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'FirestoreQueryError';
   }
@@ -29,51 +24,6 @@ export interface QueryCollectionArgs {
   select?: string[];
   startAfter?: string;
 }
-
-export const queryCollectionDefinition: Tool = {
-  name: QUERY_COLLECTION,
-  description:
-    'Query a Firestore collection with filters, ordering, and a limit. Supports cursor-based pagination via startAfter.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      collection: {
-        type: 'string',
-        description: "Collection path, e.g. 'users' or 'users/123/posts'",
-      },
-      filters: {
-        type: 'array',
-        description: 'Optional list of where-clause filters',
-        items: FILTER_SCHEMA_ITEM,
-      },
-      orderBy: {
-        type: 'array',
-        description: 'Optional ordering of results',
-        items: ORDER_BY_SCHEMA_ITEM,
-      },
-      limit: {
-        type: 'number',
-        description: 'Max number of documents to return',
-      },
-      select: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Optional list of field paths to return. Omit to return all fields.',
-      },
-      startAfter: {
-        type: 'string',
-        description:
-          'Document ID to start after for pagination. Use the nextPageCursor value returned from a previous call.',
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-    },
-    required: ['collection', 'projectId'],
-  },
-};
 
 export const queryCollection = (
   ctx: ProjectContext,

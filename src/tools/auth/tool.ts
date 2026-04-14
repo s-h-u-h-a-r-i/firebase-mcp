@@ -31,7 +31,7 @@ export const authReadDefinition: Tool = {
         enum: [...READ_OPERATIONS],
         description: [
           'The Auth operation to perform:',
-          '- get_user: Fetch a user by uid or email. Args: uid? OR email?',
+          '- get_user: Fetch a user by uid, email, or phoneNumber. Args: uid? OR email? OR phoneNumber?',
           '- list_users: List users with pagination. Args: maxResults?(1-1000, default 100), pageToken?',
         ].join('\n'),
       },
@@ -46,6 +46,11 @@ export const authReadDefinition: Tool = {
       email: {
         type: 'string',
         description: 'User email address (get_user)',
+      },
+      phoneNumber: {
+        type: 'string',
+        description:
+          'E.164 phone number of the user, e.g. +15555550100 (get_user)',
       },
       maxResults: {
         type: 'number',
