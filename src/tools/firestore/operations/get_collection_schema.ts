@@ -1,4 +1,3 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import admin from 'firebase-admin';
 
 import type { ProjectContext } from '../../../project';
@@ -45,32 +44,6 @@ const inferType = (value: unknown): string => {
   }
   if (typeof value === 'object') return 'map';
   return 'unknown';
-};
-
-export const getCollectionSchemaDefinition: Tool = {
-  name: GET_COLLECTION_SCHEMA,
-  description:
-    'Infer the schema of a Firestore collection by sampling documents. Returns field names, inferred types (integer, float, string, boolean, timestamp, geopoint, reference, array, map), and coverage (how many sampled docs contained each field). Coverage of 10/10 does not guarantee a field is always present — documents may have different fields depending on their state or lifecycle stage.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      collection: {
-        type: 'string',
-        description:
-          "Collection path, e.g. 'users' or 'shared/stores_data/ABC/data/stock'",
-      },
-      sampleSize: {
-        type: 'number',
-        description:
-          'Total number of documents to sample (default: 20). Split evenly between the start and end of the collection for varied coverage.',
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-    },
-    required: ['collection', 'projectId'],
-  },
 };
 
 export const getCollectionSchema = (

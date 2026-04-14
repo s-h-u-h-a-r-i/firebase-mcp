@@ -1,12 +1,13 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
-
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
 import { documentPathError } from '../utils/paths';
 
 export class FirestoreListCollectionsError extends Error {
   readonly _tag = 'FirestoreListCollectionsError' as const;
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'FirestoreListCollectionsError';
   }
@@ -18,32 +19,6 @@ export interface ListCollectionsArgs {
   path?: string;
   includeCounts?: boolean;
 }
-
-export const listCollectionsDefinition: Tool = {
-  name: LIST_COLLECTIONS,
-  description:
-    'List Firestore collections. Omit path to list all root-level collections, or provide a document path to list its subcollections.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      path: {
-        type: 'string',
-        description:
-          "Optional document path whose subcollections to list, e.g. 'users/123'. Omit to list root-level collections.",
-      },
-      includeCounts: {
-        type: 'boolean',
-        description:
-          'If true, includes the document count for each collection. Useful for quickly understanding the scale of each collection without separate count_documents calls.',
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-    },
-    required: ['projectId'],
-  },
-};
 
 export const listCollections = (
   ctx: ProjectContext,

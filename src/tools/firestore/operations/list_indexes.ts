@@ -1,4 +1,3 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
 import admin from 'firebase-admin';
 
 import type { ProjectContext } from '../../../project';
@@ -6,7 +5,10 @@ import { Task } from '../../../task';
 
 export class FirestoreListIndexesError extends Error {
   readonly _tag = 'FirestoreListIndexesError' as const;
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'FirestoreListIndexesError';
   }
@@ -36,32 +38,6 @@ interface ApiResponse {
   indexes?: FirestoreIndexResponse[];
   nextPageToken?: string;
 }
-
-export const listIndexesDefinition: Tool = {
-  name: LIST_INDEXES,
-  description:
-    'List Firestore composite indexes. Use this before running complex queries or collection group queries to check whether the required indexes exist. Returns index fields, query scope (COLLECTION or COLLECTION_GROUP), and state.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      collectionGroup: {
-        type: 'string',
-        description:
-          'Filter to a specific collection group name, e.g. "stock" or "purchase_orders". Omit to return all indexes.',
-      },
-      includeNotReady: {
-        type: 'boolean',
-        description:
-          'If true, includes indexes that are still CREATING or NEEDS_REPAIR. Defaults to false (only READY indexes).',
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-    },
-    required: ['projectId'],
-  },
-};
 
 export const listIndexes = (ctx: ProjectContext, input: ListIndexesArgs) =>
   Task.gen(function* () {

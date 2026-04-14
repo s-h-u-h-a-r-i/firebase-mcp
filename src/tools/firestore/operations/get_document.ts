@@ -1,5 +1,3 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
-
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
 import { documentPathError } from '../utils/paths';
@@ -30,31 +28,6 @@ export interface GetDocumentArgs {
   path: string;
   select?: string[];
 }
-
-export const getDocumentDefinition: Tool = {
-  name: GET_DOCUMENT,
-  description: 'Get a single Firestore document by path',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      path: {
-        type: 'string',
-        description: "Full document path, e.g. 'users/123' ",
-      },
-      select: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Optional list of field paths to return. Omit to return all fields.',
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-    },
-    required: ['path', 'projectId'],
-  },
-};
 
 export const getDocument = (ctx: ProjectContext, input: GetDocumentArgs) =>
   Task.gen(function* () {

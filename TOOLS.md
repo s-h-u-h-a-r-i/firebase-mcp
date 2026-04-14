@@ -31,12 +31,12 @@
 
 ### Implemented
 
-- [x] `get_user` — fetch a user by `uid` or `email`
+- [x] `get_user` — fetch a user by `uid`, `email`, or `phoneNumber`
 - [x] `list_users` — paginated user list
 
 ### Planned
 
-- [ ] `get_user` by phone number — extend identifier support to `phoneNumber`
+- [x] `get_user` by phone number — extend identifier support to `phoneNumber`
 - [ ] `get_many_users` — batch fetch by `uid[]`, `email[]`, or `phoneNumber[]` (Admin SDK `getUsers()`)
 
 ---

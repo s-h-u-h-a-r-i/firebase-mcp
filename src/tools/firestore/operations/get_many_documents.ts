@@ -1,5 +1,3 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
-
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
 import { collectionPathError, documentPathError } from '../utils/paths';
@@ -7,7 +5,10 @@ import { normalizeDocument } from '../utils/types';
 
 export class FirestoreGetManyError extends Error {
   readonly _tag = 'FirestoreGetManyError' as const;
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = 'FirestoreGetManyError';
   }
@@ -21,45 +22,6 @@ export interface GetManyDocumentsArgs {
   ids?: string[];
   select?: string[];
 }
-
-export const getManyDocumentsDefinition: Tool = {
-  name: GET_MANY_DOCUMENTS,
-  description:
-    'Fetch multiple Firestore documents in a single batch. Provide either an array of full document paths, or a collection path plus an array of document IDs. More efficient than calling get_document repeatedly.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      paths: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          "Full document paths, e.g. ['users/123', 'orders/456']. Use this for fetching documents across different collections.",
-      },
-      collection: {
-        type: 'string',
-        description:
-          "Collection path when all documents are in the same collection, e.g. 'shared/stores_data/ABC/data/stock'.",
-      },
-      ids: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          "Document IDs within the collection specified by the collection field, e.g. ['0021451', '01010000'].",
-      },
-      select: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Optional list of field paths to return. Omit to return all fields.',
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-    },
-    required: ['projectId'],
-  },
-};
 
 export const getManyDocuments = (
   ctx: ProjectContext,
@@ -116,8 +78,7 @@ export const getManyDocuments = (
         input.select?.length
           ? db.getAll(...docRefs, { fieldMask: input.select })
           : db.getAll(...docRefs),
-      catch: (cause) =>
-        new FirestoreGetManyError('Batch fetch failed', cause),
+      catch: (cause) => new FirestoreGetManyError('Batch fetch failed', cause),
     });
 
     return snaps.map((snap) =>
