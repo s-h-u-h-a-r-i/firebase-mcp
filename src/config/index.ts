@@ -34,7 +34,7 @@ export const ProjectConfigSchema = z.object({
   firestore: FirestoreConfigSchema,
 });
 
-const AppConfigSchema = z.object({
+export const AppConfigSchema = z.object({
   projects: z.record(z.string(), ProjectConfigSchema),
 });
 

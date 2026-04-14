@@ -9,6 +9,8 @@ import { AppConfig, getConfigPath, loadConfig, ProjectConfig } from '../config';
 import { createProjectContext, ProjectContext } from '../project';
 import {
   allToolDefinitions,
+  CREATE_CONFIG,
+  createConfig,
   dispatchTool,
   GET_CONFIG,
   getConfig,
@@ -41,7 +43,7 @@ const toErrorResult = (code: string, message: string, details?: unknown) => ({
 });
 
 export class FirebaseMcpServer {
-  private appConfig!: AppConfig;
+  private appConfig: AppConfig | null = null;
   private readonly projectContexts = new Map<string, Promise<ProjectContext>>();
   private readonly mcpServer: McpServer;
   private readonly configPath: string;
@@ -57,9 +59,13 @@ export class FirebaseMcpServer {
   async start(): Promise<void> {
     const { exit } = loadConfig(this.configPath).fork();
     const result = await exit;
-    if (result._tag === 'err') throw result.error;
-    if (result._tag === 'die') throw result.cause;
-    this.appConfig = result.value;
+    if (result._tag === 'ok') {
+      this.appConfig = result.value;
+    } else {
+      process.stderr.write(
+        `[firebase-mcp] Config not loaded (${this.configPath}): ${String(result._tag === 'err' ? result.error : result.cause)}. Use the create_config tool to see the required config structure.\n`,
+      );
+    }
 
     this.mcpServer.server.setRequestHandler(
       ListToolsRequestSchema,
@@ -75,9 +81,19 @@ export class FirebaseMcpServer {
   }
 
   private async handleToolCall(name: string, args: Record<string, unknown>) {
-    if (name === GET_CONFIG) return getConfig(this.appConfig);
+    if (name === CREATE_CONFIG) return createConfig();
 
     if (name === RELOAD_CONFIG) return reloadConfig(() => this.reloadAppConfig());
+
+    if (!this.appConfig) {
+      return toErrorResult(
+        'CONFIG_NOT_FOUND',
+        `No config loaded (looked for: ${this.configPath}). Call create_config to see the required file structure, create the file, then call reload_config to load it.`,
+        { configPath: this.configPath },
+      );
+    }
+
+    if (name === GET_CONFIG) return getConfig(this.appConfig);
 
     const projectId = typeof args.projectId === 'string' ? args.projectId : null;
     if (!projectId) {

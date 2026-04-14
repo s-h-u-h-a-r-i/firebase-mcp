@@ -7,7 +7,14 @@ import * as ConfigTool from './config';
 import * as FirestoreTool from './firestore';
 
 export { AUTH_READ } from './auth';
-export { GET_CONFIG, getConfig, RELOAD_CONFIG, reloadConfig } from './config';
+export {
+  CREATE_CONFIG,
+  createConfig,
+  GET_CONFIG,
+  getConfig,
+  RELOAD_CONFIG,
+  reloadConfig,
+} from './config';
 export { FIRESTORE_READ } from './firestore';
 
 class UnknownToolError extends Error {
@@ -19,6 +26,7 @@ class UnknownToolError extends Error {
 }
 
 export const allToolDefinitions: Tool[] = [
+  ConfigTool.createConfigDefinition,
   ConfigTool.getConfigDefinition,
   ConfigTool.reloadConfigDefinition,
   FirestoreTool.firestoreReadDefinition,
