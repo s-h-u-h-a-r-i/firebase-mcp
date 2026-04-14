@@ -21,6 +21,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 
 | Tool            | Description                                                                                                                 |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `create_config` | Returns a config template and setup instructions. Use this when no `firebase-mcp.json` exists yet.                          |
 | `get_config`    | Returns the current in-memory config, listing all available projects. Call this first to discover valid `projectId` values. |
 | `reload_config` | Re-reads `firebase-mcp.json` from disk and evicts all cached project runtimes.                                              |
 
@@ -152,7 +153,7 @@ Add to your MCP config (e.g. `.cursor/mcp.json`):
 
 `npx -y` will download and cache the package automatically on first run. No manual installation needed.
 
-`firestore_read` and `auth_read` are safe to add to Cursor's tool allowlist for unattended use. `get_config` and `reload_config` are also read-only and safe to allowlist.
+`firestore_read` and `auth_read` are safe to add to Cursor's tool allowlist for unattended use. `get_config`, `reload_config`, and `create_config` are also read-only and safe to allowlist.
 
 ## License
 
