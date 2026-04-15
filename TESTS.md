@@ -24,26 +24,26 @@ All constructors, combinators, Exit guards, abort/fork behaviour covered.
 
 ---
 
-## `src/tools/normalize.test.ts` — `normalizeValue`
+## `src/tools/normalize.test.ts` — `normalizeValue` **[done]**
 
 The universal output normaliser. Pure function, no Firebase SDK needed (duck-type
 checking only). Every tool response passes through this.
 
-- [ ] `null` and `undefined` pass through unchanged
-- [ ] Primitives (`string`, `number`, `boolean`) pass through unchanged
-- [ ] `Timestamp` instance → ISO string via `.toDate().toISOString()`
-- [ ] `GeoPoint` instance → `{ latitude, longitude }`
-- [ ] `DocumentReference` instance → `.path` string
-- [ ] Raw `{ _seconds, _nanoseconds }` POJO (exactly 2 keys, both number) → ISO string
-- [ ] Raw `{ _seconds, _nanoseconds }` with a third key → treated as a plain object (not converted)
-- [ ] Raw `{ _seconds: 'string', _nanoseconds: 0 }` → treated as a plain object (type guard)
-- [ ] Flat object → all values recursively normalised
-- [ ] Nested object → deep normalisation
-- [ ] Array of primitives → pass through
-- [ ] Array of mixed Firebase types → each element normalised
-- [ ] Deeply nested array + object combination
-- [ ] Empty array → `[]`
-- [ ] Empty object → `{}`
+- [x] `null` and `undefined` pass through unchanged
+- [x] Primitives (`string`, `number`, `boolean`) pass through unchanged
+- [x] `Timestamp` instance → ISO string via `.toDate().toISOString()`
+- [x] `GeoPoint` instance → `{ latitude, longitude }`
+- [x] `DocumentReference` instance → `.path` string
+- [x] Raw `{ _seconds, _nanoseconds }` POJO (exactly 2 keys, both number) → ISO string
+- [x] Raw `{ _seconds, _nanoseconds }` with a third key → treated as a plain object (not converted)
+- [x] Raw `{ _seconds: 'string', _nanoseconds: 0 }` → treated as a plain object (type guard)
+- [x] Flat object → all values recursively normalised
+- [x] Nested object → deep normalisation
+- [x] Array of primitives → pass through
+- [x] Array of mixed Firebase types → each element normalised
+- [x] Deeply nested array + object combination
+- [x] Empty array → `[]`
+- [x] Empty object → `{}`
 
 ---
 
