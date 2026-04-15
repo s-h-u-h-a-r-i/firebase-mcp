@@ -1,5 +1,7 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { documentPathError } from '../utils/paths';
 
 export class FirestoreListCollectionsError extends Error {
@@ -14,6 +16,13 @@ export class FirestoreListCollectionsError extends Error {
 }
 
 export const LIST_COLLECTIONS = 'list_collections' as const;
+
+export const listCollectionsOp: OperationSchema<FirestorePropKey> = {
+  name: LIST_COLLECTIONS,
+  description:
+    'List root collections, or subcollections of a document. Args: path?(EVEN segments — document path, e.g. "stores/ABC"), includeCounts?(bool). Returns collection paths (ODD segments) → use with list_documents or read_collection.',
+  properties: ['path', 'includeCounts'],
+};
 
 export interface ListCollectionsArgs {
   path?: string;

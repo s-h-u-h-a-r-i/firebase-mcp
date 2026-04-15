@@ -2,6 +2,8 @@ import admin from 'firebase-admin';
 
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 
 export class FirestoreListIndexesError extends Error {
   readonly _tag = 'FirestoreListIndexesError' as const;
@@ -15,6 +17,13 @@ export class FirestoreListIndexesError extends Error {
 }
 
 export const LIST_INDEXES = 'list_indexes' as const;
+
+export const listIndexesOp: OperationSchema<FirestorePropKey> = {
+  name: LIST_INDEXES,
+  description:
+    'List composite indexes. Args: collectionGroup?(filter by name), includeNotReady?(bool)',
+  properties: ['collectionGroup', 'includeNotReady'],
+};
 
 export interface ListIndexesArgs {
   collectionGroup?: string;

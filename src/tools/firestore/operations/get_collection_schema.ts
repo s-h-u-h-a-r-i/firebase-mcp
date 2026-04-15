@@ -2,6 +2,8 @@ import admin from 'firebase-admin';
 
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { collectionPathError } from '../utils/paths';
 
 export class FirestoreSchemaError extends Error {
@@ -16,6 +18,13 @@ export class FirestoreSchemaError extends Error {
 }
 
 export const GET_COLLECTION_SCHEMA = 'get_collection_schema' as const;
+
+export const getCollectionSchemaOp: OperationSchema<FirestorePropKey> = {
+  name: GET_COLLECTION_SCHEMA,
+  description:
+    'Infer field types by sampling docs. Args: collection(ODD segments), sampleSize?(default 20)',
+  properties: ['collection', 'sampleSize'],
+};
 
 export interface GetCollectionSchemaArgs {
   collection: string;

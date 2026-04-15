@@ -1,6 +1,8 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
 import { normalizeValue } from '../../normalize';
+import type { AuthPropKey } from '../properties';
 
 export class AuthGetUserError extends Error {
   readonly _tag = 'AuthGetUserError' as const;
@@ -22,6 +24,13 @@ export class AuthUserNotFoundError extends Error {
 }
 
 export const GET_USER = 'get_user' as const;
+
+export const getUserOp: OperationSchema<AuthPropKey> = {
+  name: GET_USER,
+  description:
+    'Fetch a user by uid, email, or phoneNumber. Args: uid? OR email? OR phoneNumber?',
+  properties: ['uid', 'email', 'phoneNumber'],
+};
 
 export interface GetUserArgs {
   uid?: string;

@@ -1,5 +1,7 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { collectionPathError } from '../utils/paths';
 import { normalizeDocument, QueryFilter, QueryOrderBy } from '../utils/types';
 
@@ -15,6 +17,20 @@ export class FirestoreQueryError extends Error {
 }
 
 export const QUERY_COLLECTION = 'query_collection' as const;
+
+export const queryCollectionOp: OperationSchema<FirestorePropKey> = {
+  name: QUERY_COLLECTION,
+  description:
+    'Query with filters/ordering/pagination. Args: collection(ODD segments), filters?[], orderBy?[], limit?, select?[], startAfter?(doc ID)',
+  properties: [
+    'collection',
+    'filters',
+    'orderBy',
+    'limit',
+    'select',
+    'startAfter',
+  ],
+};
 
 export interface QueryCollectionArgs {
   collection: string;

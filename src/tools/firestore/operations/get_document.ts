@@ -1,5 +1,7 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { documentPathError } from '../utils/paths';
 import { normalizeDocument } from '../utils/types';
 
@@ -23,6 +25,13 @@ export class DocumentNotFoundError extends Error {
 }
 
 export const GET_DOCUMENT = 'get_document' as const;
+
+export const getDocumentOp: OperationSchema<FirestorePropKey> = {
+  name: GET_DOCUMENT,
+  description:
+    'Fetch a single document by path. Args: path(EVEN segments, e.g. "users/123"), select?[]',
+  properties: ['path', 'select'],
+};
 
 export interface GetDocumentArgs {
   path: string;

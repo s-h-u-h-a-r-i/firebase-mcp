@@ -20,36 +20,6 @@ export const VALID_OPERATORS: WhereFilterOp[] = [
   'not-in',
 ];
 
-export const FILTER_SCHEMA_ITEM = {
-  type: 'object',
-  properties: {
-    field: { type: 'string', description: 'Field name to filter on' },
-    operator: {
-      type: 'string',
-      enum: VALID_OPERATORS,
-      description: 'Comparison operator',
-    },
-    value: {
-      description:
-        'Value to compare against (string, number, boolean, null, or array for in/array-contains-any/not-in)',
-    },
-  },
-  required: ['field', 'operator', 'value'],
-} as const;
-
-export const ORDER_BY_SCHEMA_ITEM = {
-  type: 'object',
-  properties: {
-    field: { type: 'string', description: 'Field to order by' },
-    direction: {
-      type: 'string',
-      enum: ['asc', 'desc'],
-      description: "Sort direction (default: 'asc')",
-    },
-  },
-  required: ['field'],
-} as const;
-
 export interface QueryFilter {
   field: string | FieldPath;
   operator: WhereFilterOp;

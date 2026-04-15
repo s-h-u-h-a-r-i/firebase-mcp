@@ -1,5 +1,7 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { collectionPathError } from '../utils/paths';
 import { normalizeDocument } from '../utils/types';
 
@@ -15,6 +17,19 @@ export class FirestoreReadError extends Error {
 }
 
 export const READ_COLLECTION = 'read_collection' as const;
+
+export const readCollectionOp: OperationSchema<FirestorePropKey> = {
+  name: READ_COLLECTION,
+  description:
+    'Read documents from a collection. Args: collection(ODD segments), limit?, select?[], startAfter?(doc ID), includePhantoms?(bool)',
+  properties: [
+    'collection',
+    'limit',
+    'select',
+    'startAfter',
+    'includePhantoms',
+  ],
+};
 
 export interface ReadCollectionArgs {
   collection: string;

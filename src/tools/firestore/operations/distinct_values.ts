@@ -1,5 +1,7 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { collectionPathError } from '../utils/paths';
 import { QueryFilter } from '../utils/types';
 
@@ -15,6 +17,38 @@ export class FirestoreDistinctValuesError extends Error {
 }
 
 export const DISTINCT_VALUES = 'distinct_values' as const;
+
+export const distinctValuesOp: OperationSchema<FirestorePropKey> = {
+  name: DISTINCT_VALUES,
+  description: [
+    'Count occurrences of each unique value (or value combination) of one or more fields.',
+    'Source: collection(ODD segments) OR collectionId(single name — queries across ALL subcollections with that name, like query_collection_group).',
+    'Fields: field(single field name) OR fields([array of field names] — each result value becomes an object keyed by field name).',
+    'groupByFields?([subset of fields] — use only these as the identity/grouping key;',
+    '  remaining fields become label arrays of unique values seen per group,',
+    '  e.g. groupByFields:["cashier"] with fields:["cashier","cashierNm"] groups by cashier ID',
+    '  while collecting all cashierNm variants as a label — useful when a display name varies across collections but the ID is stable).',
+    'filters?[].',
+    'groupByPathSegment?(integer — when using collectionId, extracts this segment from the parent collection path as the byCollection key,',
+    '  e.g. 2 turns "shared/stores_data/ABC123/data/purchase_orders" into "ABC123").',
+    'minCollections?(integer or "all" — only return values present in at least this many distinct collection buckets;',
+    '  "all" means present in every bucket found without knowing the count upfront;',
+    '  operates on the groupByFields key so label variation across buckets does not cause missed matches;',
+    '  all values are annotated with collectionCount and collections[] regardless).',
+    'Fetches all matching docs internally (up to maxBatchFetchSize).',
+    'Returns values[] sorted by count desc. When using collectionId, also returns byCollection{} broken down by parent collection (or extracted segment).',
+  ].join(' '),
+  properties: [
+    'collection',
+    'collectionId',
+    'field',
+    'fields',
+    'groupByFields',
+    'filters',
+    'groupByPathSegment',
+    'minCollections',
+  ],
+};
 
 export interface DistinctValuesArgs {
   collection?: string;

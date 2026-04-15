@@ -1,60 +1,79 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
-
 import type { ProjectContext } from '../../project';
 import { Task } from '../../task';
+import { buildTool } from '../build-tool';
 import {
   AGGREGATE_COLLECTION,
   aggregateCollection,
   AggregateCollectionArgs,
+  aggregateCollectionOp,
 } from './operations/aggregate_collection';
-import {
-  DISTINCT_VALUES,
-  distinctValues,
-  DistinctValuesArgs,
-} from './operations/distinct_values';
 import {
   COUNT_DOCUMENTS,
   countDocuments,
   CountDocumentsArgs,
+  countDocumentsOp,
 } from './operations/count_documents';
+import {
+  DISTINCT_VALUES,
+  distinctValues,
+  DistinctValuesArgs,
+  distinctValuesOp,
+} from './operations/distinct_values';
 import {
   GET_COLLECTION_SCHEMA,
   getCollectionSchema,
   GetCollectionSchemaArgs,
+  getCollectionSchemaOp,
 } from './operations/get_collection_schema';
-import { GET_DOCUMENT, getDocument, GetDocumentArgs } from './operations/get_document';
+import {
+  GET_DOCUMENT,
+  getDocument,
+  GetDocumentArgs,
+  getDocumentOp,
+} from './operations/get_document';
 import {
   GET_MANY_DOCUMENTS,
   getManyDocuments,
   GetManyDocumentsArgs,
+  getManyDocumentsOp,
 } from './operations/get_many_documents';
 import {
   LIST_COLLECTIONS,
   listCollections,
   ListCollectionsArgs,
+  listCollectionsOp,
 } from './operations/list_collections';
 import {
   LIST_DOCUMENTS,
   listDocuments,
   ListDocumentsArgs,
+  listDocumentsOp,
 } from './operations/list_documents';
-import { LIST_INDEXES, listIndexes, ListIndexesArgs } from './operations/list_indexes';
+import {
+  LIST_INDEXES,
+  listIndexes,
+  ListIndexesArgs,
+  listIndexesOp,
+} from './operations/list_indexes';
 import {
   QUERY_COLLECTION,
   queryCollection,
   QueryCollectionArgs,
+  queryCollectionOp,
 } from './operations/query_collection';
 import {
   QUERY_COLLECTION_GROUP,
   queryCollectionGroup,
   QueryCollectionGroupArgs,
+  queryCollectionGroupOp,
 } from './operations/query_collection_group';
 import {
   READ_COLLECTION,
   readCollection,
   ReadCollectionArgs,
+  readCollectionOp,
 } from './operations/read_collections';
-import { FILTER_SCHEMA_ITEM, ORDER_BY_SCHEMA_ITEM } from './utils/types';
+import { FIRESTORE_PROPS } from './properties';
 
 const READ_OPERATIONS = [
   LIST_COLLECTIONS,
@@ -83,185 +102,26 @@ export class UnknownFirestoreOperationError extends Error {
 
 export const FIRESTORE_READ = 'firestore_read' as const;
 
-const DISTINCT_VALUES_DESCRIPTION = [
-  '- distinct_values: Count occurrences of each unique value (or value combination) of one or more fields.',
-  '  Source: collection(ODD segments) OR collectionId(single name — queries across ALL subcollections with that name, like query_collection_group).',
-  '  Fields: field(single field name) OR fields([array of field names] — each result value becomes an object keyed by field name).',
-  '  groupByFields?([subset of fields] — use only these as the identity/grouping key;',
-  '    remaining fields become label arrays of unique values seen per group,',
-  '    e.g. groupByFields:["cashier"] with fields:["cashier","cashierNm"] groups by cashier ID',
-  '    while collecting all cashierNm variants as a label — useful when a display name varies across collections but the ID is stable).',
-  '  filters?[].',
-  '  groupByPathSegment?(integer — when using collectionId, extracts this segment from the parent collection path as the byCollection key,',
-  '    e.g. 2 turns "shared/stores_data/ABC123/data/purchase_orders" into "ABC123").',
-  '  minCollections?(integer or "all" — only return values present in at least this many distinct collection buckets;',
-  '    "all" means present in every bucket found without knowing the count upfront;',
-  '    operates on the groupByFields key so label variation across buckets does not cause missed matches;',
-  '    all values are annotated with collectionCount and collections[] regardless).',
-  '  Fetches all matching docs internally (up to maxBatchFetchSize).',
-  '  Returns values[] sorted by count desc. When using collectionId, also returns byCollection{} broken down by parent collection (or extracted segment).',
-].join(' ');
-
-export const firestoreReadDefinition: Tool = {
+export const firestoreReadDefinition = buildTool({
   name: FIRESTORE_READ,
   description:
     'Read from Firebase Firestore. Use the operation field to select what to do.',
-  inputSchema: {
-    type: 'object',
-    required: ['operation', 'projectId'],
-    properties: {
-      operation: {
-        type: 'string',
-        enum: [...READ_OPERATIONS],
-        description: [
-          'Firestore paths alternate between collections (odd segments) and documents (even segments).',
-          'Collection path examples: "users", "stores/ABC/orders". Document path examples: "users/123", "stores/ABC/orders/456".',
-          'Operations that take `collection` require an ODD-segment path. Operations that take `path` require an EVEN-segment path.',
-          'Passing the wrong path type returns a clear error with a suggested fix.',
-          '',
-          'The Firestore operation to perform:',
-          '- list_collections: List root collections, or subcollections of a document. Args: path?(EVEN segments — document path, e.g. "stores/ABC"), includeCounts?(bool). Returns collection paths (ODD segments) → use with list_documents or read_collection.',
-          '- list_documents: List all doc IDs including phantoms. Always includes subcollections per doc. Args: collection(ODD segments). Returns document paths (EVEN segments) with collections[] → use with get_document or list_collections.',
-          '- read_collection: Read documents from a collection. Args: collection(ODD segments), limit?, select?[], startAfter?(doc ID), includePhantoms?(bool)',
-          '- get_document: Fetch a single document by path. Args: path(EVEN segments, e.g. "users/123"), select?[]',
-          '- get_many_documents: Batch-fetch documents. Args: paths?[](each EVEN segments) OR (collection(ODD segments) + ids[]); select?[]',
-          '- query_collection: Query with filters/ordering/pagination. Args: collection(ODD segments), filters?[], orderBy?[], limit?, select?[], startAfter?(doc ID)',
-          '- query_collection_group: Query across all subcollections with the same name. Args: collectionId(single name, no slashes), filters?[], orderBy?[], limit?, select?[], startAfter?(full doc path)',
-          '- count_documents: Server-side count without fetching docs. Args: collection(ODD segments), filters?[]',
-          '- aggregate_collection: Server-side sum/avg/count aggregations. Args: collection(ODD segments), aggregations[]{alias,type,field?}, filters?[]',
-          '- get_collection_schema: Infer field types by sampling docs. Args: collection(ODD segments), sampleSize?(default 20)',
-          '- list_indexes: List composite indexes. Args: collectionGroup?(filter by name), includeNotReady?(bool)',
-          DISTINCT_VALUES_DESCRIPTION,
-        ].join('\n'),
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-      path: {
-        type: 'string',
-        description:
-          "Document path for get_document (e.g. 'users/123') or optional document path for list_collections subcollections",
-      },
-      collection: {
-        type: 'string',
-        description: "Collection path (e.g. 'users' or 'users/123/posts')",
-      },
-      collectionId: {
-        type: 'string',
-        description:
-          "Collection name for query_collection_group (e.g. 'orders')",
-      },
-      paths: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          "Full document paths for get_many_documents (e.g. ['users/123', 'orders/456'])",
-      },
-      ids: {
-        type: 'array',
-        items: { type: 'string' },
-        description:
-          'Document IDs within the collection field for get_many_documents',
-      },
-      filters: {
-        type: 'array',
-        items: FILTER_SCHEMA_ITEM,
-        description: 'Where-clause filters',
-      },
-      orderBy: {
-        type: 'array',
-        items: ORDER_BY_SCHEMA_ITEM,
-        description: 'Ordering of results',
-      },
-      limit: {
-        type: 'number',
-        description: 'Max number of documents to return',
-      },
-      select: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Field paths to return. Omit for all fields.',
-      },
-      startAfter: {
-        type: 'string',
-        description:
-          'Pagination cursor: doc ID for query_collection/read_collection, full doc path for query_collection_group',
-      },
-      aggregations: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            alias: {
-              type: 'string',
-              description: 'Key name for this result in the response',
-            },
-            type: {
-              type: 'string',
-              enum: ['sum', 'avg', 'count'],
-              description: '"sum" and "avg" require a field; "count" does not',
-            },
-            field: {
-              type: 'string',
-              description: 'Field path to aggregate (required for sum/avg)',
-            },
-          },
-          required: ['alias', 'type'],
-        },
-        description: 'Aggregations for aggregate_collection',
-      },
-      includeCounts: {
-        type: 'boolean',
-        description: 'list_collections: include document count per collection',
-      },
-      includePhantoms: {
-        type: 'boolean',
-        description:
-          'read_collection: fall back to listDocuments() when the collection returns no docs',
-      },
-      includeNotReady: {
-        type: 'boolean',
-        description:
-          'list_indexes: include indexes still being created or needing repair',
-      },
-      sampleSize: {
-        type: 'number',
-        description:
-          'get_collection_schema: number of documents to sample (default 20)',
-      },
-      collectionGroup: {
-        type: 'string',
-        description:
-          'list_indexes: filter results to a specific collection group name',
-      },
-      field: {
-        type: 'string',
-        description: 'distinct_values: single field name to count unique values for. Use fields[] for multi-field grouping.',
-      },
-      fields: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'distinct_values: multiple field names to fetch. Each result value is an object keyed by field name. Use groupByFields to group on a subset.',
-      },
-      groupByFields: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'distinct_values: subset of fields[] to use as the grouping/identity key. Remaining fields are collected as label arrays (unique values seen per group). Allows minCollections to operate on a stable ID field even when a display name varies across collections.',
-      },
-      groupByPathSegment: {
-        type: 'number',
-        description:
-          'distinct_values with collectionId: 0-based index of the path segment to use as the byCollection key instead of the full path (e.g. 2 extracts "ABC123" from "shared/stores_data/ABC123/data/purchase_orders")',
-      },
-      minCollections: {
-        type: ['number', 'string'],
-        description:
-          'distinct_values with collectionId: only return values that appear in at least this many distinct collection buckets. Pass a number (e.g. 2) or "all" to mean "present in every collection bucket found" — useful for "users in every store" without needing to know the store count upfront. All returned values are annotated with collectionCount and collections[] regardless.',
-      },
-    },
-  },
-};
+  allProperties: FIRESTORE_PROPS,
+  ops: [
+    listCollectionsOp,
+    listDocumentsOp,
+    readCollectionOp,
+    getDocumentOp,
+    getManyDocumentsOp,
+    queryCollectionOp,
+    queryCollectionGroupOp,
+    countDocumentsOp,
+    aggregateCollectionOp,
+    getCollectionSchemaOp,
+    listIndexesOp,
+    distinctValuesOp,
+  ],
+});
 
 export const dispatchFirestoreRead = (
   ctx: ProjectContext,

@@ -1,9 +1,19 @@
-import { Tool } from '@modelcontextprotocol/sdk/types.js';
-
 import type { ProjectContext } from '../../project';
 import { Task } from '../../task';
-import { GET_USER, getUser, GetUserArgs } from './operations/get_user';
-import { LIST_USERS, listUsers, ListUsersArgs } from './operations/list_users';
+import { buildTool } from '../build-tool';
+import {
+  GET_USER,
+  getUser,
+  GetUserArgs,
+  getUserOp,
+} from './operations/get_user';
+import {
+  LIST_USERS,
+  listUsers,
+  ListUsersArgs,
+  listUsersOp,
+} from './operations/list_users';
+import { AUTH_PROPS } from './properties';
 
 const READ_OPERATIONS = [GET_USER, LIST_USERS] as const;
 
@@ -19,52 +29,12 @@ export class UnknownAuthOperationError extends Error {
 
 export const AUTH_READ = 'auth_read' as const;
 
-export const authReadDefinition: Tool = {
+export const authReadDefinition = buildTool({
   name: AUTH_READ,
   description: 'Read from Firebase Authentication.',
-  inputSchema: {
-    type: 'object',
-    required: ['operation', 'projectId'],
-    properties: {
-      operation: {
-        type: 'string',
-        enum: [...READ_OPERATIONS],
-        description: [
-          'The Auth operation to perform:',
-          '- get_user: Fetch a user by uid, email, or phoneNumber. Args: uid? OR email? OR phoneNumber?',
-          '- list_users: List users with pagination. Args: maxResults?(1-1000, default 100), pageToken?',
-        ].join('\n'),
-      },
-      projectId: {
-        type: 'string',
-        description: 'Project key as defined in firebase-mcp.json',
-      },
-      uid: {
-        type: 'string',
-        description: 'Firebase Auth UID (get_user)',
-      },
-      email: {
-        type: 'string',
-        description: 'User email address (get_user)',
-      },
-      phoneNumber: {
-        type: 'string',
-        description:
-          'E.164 phone number of the user, e.g. +15555550100 (get_user)',
-      },
-      maxResults: {
-        type: 'number',
-        description:
-          'Maximum number of users to return, 1–1000 (list_users, default 100)',
-      },
-      pageToken: {
-        type: 'string',
-        description:
-          'Page token from a previous list_users response (list_users)',
-      },
-    },
-  },
-};
+  allProperties: AUTH_PROPS,
+  ops: [getUserOp, listUsersOp],
+});
 
 export const dispatchAuthRead = (
   ctx: ProjectContext,

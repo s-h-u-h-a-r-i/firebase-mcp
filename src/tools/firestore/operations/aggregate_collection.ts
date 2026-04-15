@@ -2,6 +2,8 @@ import { AggregateField } from 'firebase-admin/firestore';
 
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { collectionPathError } from '../utils/paths';
 import { QueryFilter } from '../utils/types';
 
@@ -17,6 +19,13 @@ export class FirestoreAggregateError extends Error {
 }
 
 export const AGGREGATE_COLLECTION = 'aggregate_collection' as const;
+
+export const aggregateCollectionOp: OperationSchema<FirestorePropKey> = {
+  name: AGGREGATE_COLLECTION,
+  description:
+    'Server-side sum/avg/count aggregations. Args: collection(ODD segments), aggregations[]{alias,type,field?}, filters?[]',
+  properties: ['collection', 'aggregations', 'filters'],
+};
 
 export interface AggregationSpec {
   alias: string;
