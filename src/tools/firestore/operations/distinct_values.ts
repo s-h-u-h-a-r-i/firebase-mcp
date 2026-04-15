@@ -1,9 +1,9 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
 import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { collectionPathError } from '../utils/paths';
 import { QueryFilter } from '../utils/types';
-import type { FirestorePropKey } from '../props';
 
 export class FirestoreDistinctValuesError extends Error {
   readonly _tag = 'FirestoreDistinctValuesError' as const;
