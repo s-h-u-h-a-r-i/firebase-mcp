@@ -1,5 +1,7 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { collectionPathError } from '../utils/paths';
 import { QueryFilter } from '../utils/types';
 
@@ -15,6 +17,13 @@ export class FirestoreCountError extends Error {
 }
 
 export const COUNT_DOCUMENTS = 'count_documents' as const;
+
+export const countDocumentsOp: OperationSchema<FirestorePropKey> = {
+  name: COUNT_DOCUMENTS,
+  description:
+    'Server-side count without fetching docs. Args: collection(ODD segments), filters?[]',
+  properties: ['collection', 'filters'],
+};
 
 export interface CountDocumentsArgs {
   collection: string;

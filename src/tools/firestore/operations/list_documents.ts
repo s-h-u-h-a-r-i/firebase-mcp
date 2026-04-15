@@ -1,5 +1,7 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { collectionPathError } from '../utils/paths';
 
 export class FirestoreListDocumentsError extends Error {
@@ -14,6 +16,13 @@ export class FirestoreListDocumentsError extends Error {
 }
 
 export const LIST_DOCUMENTS = 'list_documents' as const;
+
+export const listDocumentsOp: OperationSchema<FirestorePropKey> = {
+  name: LIST_DOCUMENTS,
+  description:
+    'List all doc IDs including phantoms. Always includes subcollections per doc. Args: collection(ODD segments). Returns document paths (EVEN segments) with collections[] → use with get_document or list_collections.',
+  properties: ['collection'],
+};
 
 export interface ListDocumentsArgs {
   collection: string;

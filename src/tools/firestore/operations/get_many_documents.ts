@@ -1,5 +1,7 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { collectionPathError, documentPathError } from '../utils/paths';
 import { normalizeDocument } from '../utils/types';
 
@@ -15,6 +17,13 @@ export class FirestoreGetManyError extends Error {
 }
 
 export const GET_MANY_DOCUMENTS = 'get_many_documents' as const;
+
+export const getManyDocumentsOp: OperationSchema<FirestorePropKey> = {
+  name: GET_MANY_DOCUMENTS,
+  description:
+    'Batch-fetch documents. Args: paths?[](each EVEN segments) OR (collection(ODD segments) + ids[]); select?[]',
+  properties: ['paths', 'collection', 'ids', 'select'],
+};
 
 export interface GetManyDocumentsArgs {
   paths?: string[];

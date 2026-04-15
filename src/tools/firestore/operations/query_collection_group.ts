@@ -1,5 +1,7 @@
 import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
+import type { OperationSchema } from '../../build-tool';
+import type { FirestorePropKey } from '../properties';
 import { normalizeDocument, QueryFilter, QueryOrderBy } from '../utils/types';
 
 export class FirestoreCollectionGroupQueryError extends Error {
@@ -14,6 +16,20 @@ export class FirestoreCollectionGroupQueryError extends Error {
 }
 
 export const QUERY_COLLECTION_GROUP = 'query_collection_group' as const;
+
+export const queryCollectionGroupOp: OperationSchema<FirestorePropKey> = {
+  name: QUERY_COLLECTION_GROUP,
+  description:
+    'Query across all subcollections with the same name. Args: collectionId(single name, no slashes), filters?[], orderBy?[], limit?, select?[], startAfter?(full doc path)',
+  properties: [
+    'collectionId',
+    'filters',
+    'orderBy',
+    'limit',
+    'select',
+    'startAfter',
+  ],
+};
 
 export interface QueryCollectionGroupArgs {
   collectionId: string;
