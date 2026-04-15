@@ -79,12 +79,15 @@ type ScalarValue = string | null;
 const rawToScalar = (raw: unknown): ScalarValue =>
   raw === undefined || raw === null ? null : String(raw);
 
-const makeCompositeKey = (values: ScalarValue[]): string =>
+export const makeCompositeKey = (values: ScalarValue[]): string =>
   values.length === 1
     ? (values[0] ?? '__null__')
     : JSON.stringify(values.map((v) => v ?? '__null__'));
 
-const parseCompositeKey = (key: string, fieldCount: number): ScalarValue[] => {
+export const parseCompositeKey = (
+  key: string,
+  fieldCount: number,
+): ScalarValue[] => {
   if (fieldCount === 1) return [key === '__null__' ? null : key];
   const parts = JSON.parse(key) as string[];
   return parts.map((p) => (p === '__null__' ? null : p));

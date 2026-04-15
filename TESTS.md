@@ -64,44 +64,44 @@ checking only). Every tool response passes through this.
 
 ---
 
-## `src/tools/firestore/operations/distinct_values.test.ts` — Pure business logic
+## `src/tools/firestore/operations/distinct_values.test.ts` — Pure business logic **[done]**
 
 `makeCompositeKey` / `parseCompositeKey` and the accumulator logic are pure
 (in-memory). The Firestore fetch loop can be tested with a lightweight mock.
 
 ### Key encoding (`makeCompositeKey` / `parseCompositeKey`)
 
-- [ ] Single field, non-null value → plain string key (not JSON-wrapped)
-- [ ] Single field, `null` value → `'__null__'` key
-- [ ] Single field, `'__null__'` string value → stored as `'__null__'` (ambiguous — document this behaviour)
-- [ ] Multi-field, all non-null → JSON array key
-- [ ] Multi-field, one null → JSON array with `'__null__'` entry
-- [ ] `parseCompositeKey` round-trips single-field null → `[null]`
-- [ ] `parseCompositeKey` round-trips multi-field mixed → correct scalars
+- [x] Single field, non-null value → plain string key (not JSON-wrapped)
+- [x] Single field, `null` value → `'__null__'` key
+- [x] Single field, `'__null__'` string value → stored as `'__null__'` (ambiguous — document this behaviour)
+- [x] Multi-field, all non-null → JSON array key
+- [x] Multi-field, one null → JSON array with `'__null__'` entry
+- [x] `parseCompositeKey` round-trips single-field null → `[null]`
+- [x] `parseCompositeKey` round-trips multi-field mixed → correct scalars
 
 ### Input validation (exercised via `distinctValues` with a mock ctx)
 
-- [ ] Neither `field` nor `fields` → `FirestoreDistinctValuesError`
-- [ ] `fields` is empty array → `FirestoreDistinctValuesError`
-- [ ] Neither `collection` nor `collectionId` → `FirestoreDistinctValuesError`
-- [ ] Both `collection` and `collectionId` → `FirestoreDistinctValuesError`
-- [ ] `groupByFields` contains a field not in `fields` → `FirestoreDistinctValuesError`
-- [ ] Invalid collection path (even segments) → `FirestoreDistinctValuesError`
+- [x] Neither `field` nor `fields` → `FirestoreDistinctValuesError`
+- [x] `fields` is empty array → `FirestoreDistinctValuesError`
+- [x] Neither `collection` nor `collectionId` → `FirestoreDistinctValuesError`
+- [x] Both `collection` and `collectionId` → `FirestoreDistinctValuesError`
+- [x] `groupByFields` contains a field not in `fields` → `FirestoreDistinctValuesError`
+- [x] Invalid collection path (even segments) → `FirestoreDistinctValuesError`
 
 ### Accumulator / output shaping (mock Firestore snapshot)
 
-- [ ] Single field, single doc → `values[0].value` is a plain scalar
-- [ ] Single field, multiple docs with repeated values → correct counts, sorted desc
-- [ ] Multi-field (no `groupByFields`) → `value` is an object keyed by all fields
-- [ ] `groupByFields` subset + label fields → label arrays collected per group
-- [ ] Label field value `null` → not added to the label `Set` (no `null` in labels)
-- [ ] `collectionId` mode → `byCollection` map present; `collection` mode → absent
-- [ ] `groupByPathSegment` extracts the correct path segment as the bucket key
-- [ ] `minCollections: 2` filters out values present in fewer than 2 buckets
-- [ ] `minCollections: 'all'` → resolves to the total number of distinct buckets found
-- [ ] `minCollections: 'all'` with a single bucket → all values pass through
-- [ ] Pagination: mock that returns `fetchLimit` docs on first call, remainder on second → totals correct
-- [ ] Empty collection → `values: []`, `totalDocsFetched: 0`
+- [x] Single field, single doc → `values[0].value` is a plain scalar
+- [x] Single field, multiple docs with repeated values → correct counts, sorted desc
+- [x] Multi-field (no `groupByFields`) → `value` is an object keyed by all fields
+- [x] `groupByFields` subset + label fields → label arrays collected per group
+- [x] Label field value `null` → not added to the label `Set` (no `null` in labels)
+- [x] `collectionId` mode → `byCollection` map present; `collection` mode → absent
+- [x] `groupByPathSegment` extracts the correct path segment as the bucket key
+- [x] `minCollections: 2` filters out values present in fewer than 2 buckets
+- [x] `minCollections: 'all'` → resolves to the total number of distinct buckets found
+- [x] `minCollections: 'all'` with a single bucket → all values pass through
+- [x] Pagination: mock that returns `fetchLimit` docs on first call, remainder on second → totals correct
+- [x] Empty collection → `values: []`, `totalDocsFetched: 0`
 
 ---
 
