@@ -47,20 +47,20 @@ checking only). Every tool response passes through this.
 
 ---
 
-## `src/project/index.test.ts` — Access control
+## `src/project/index.test.ts` — Access control **[done]**
 
 `isAllowed` / `checkAccess` is the security boundary for all Firestore reads.
 
-- [ ] Path matching a glob in `allow` → allowed
-- [ ] Path matching a glob in `deny` → denied (even if also in `allow`)
-- [ ] Path matching nothing → denied
-- [ ] Empty `allow` list → everything denied
-- [ ] Empty `deny` list → allow list still works
-- [ ] `**` wildcard in `allow` matches any path
-- [ ] `**` wildcard in `deny` blocks any path regardless of allow
-- [ ] `checkAccess` returns `Task.succeed(undefined)` when allowed
-- [ ] `checkAccess` returns `Task.fail(AccessDeniedError)` when denied
-- [ ] `AccessDeniedError` has the correct `_tag`, `path`, and `message`
+- [x] Path matching a glob in `allow` → allowed
+- [x] Path matching a glob in `deny` → denied (even if also in `allow`)
+- [x] Path matching nothing → denied
+- [x] Empty `allow` list → everything denied
+- [x] Empty `deny` list → allow list still works
+- [x] `**` wildcard in `allow` matches any path
+- [x] `**` wildcard in `deny` blocks any path regardless of allow
+- [x] `checkAccess` returns `Task.succeed(undefined)` when allowed
+- [x] `checkAccess` returns `Task.fail(AccessDeniedError)` when denied
+- [x] `AccessDeniedError` has the correct `_tag`, `path`, and `message`
 
 ---
 

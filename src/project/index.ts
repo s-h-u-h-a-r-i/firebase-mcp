@@ -20,7 +20,7 @@ export interface ProjectContext {
   checkAccess: (path: string) => Task<void, AccessDeniedError>;
 }
 
-const isAllowed = (
+export const isAllowed = (
   path: string,
   rules: { allow: readonly string[]; deny: readonly string[] },
 ): boolean => {
@@ -29,6 +29,13 @@ const isAllowed = (
   return false;
 };
 
+export const makeCheckAccess =
+  (rules: { allow: readonly string[]; deny: readonly string[] }) =>
+  (path: string): Task<void, AccessDeniedError> =>
+    isAllowed(path, rules)
+      ? Task.succeed(undefined)
+      : Task.fail(new AccessDeniedError(path));
+
 export const createProjectContext = (
   config: ProjectConfig,
 ): Task<ProjectContext, FirebaseInitError> =>
@@ -36,9 +43,5 @@ export const createProjectContext = (
     config,
     firestore: clients.firestore,
     auth: clients.auth,
-    checkAccess(path: string) {
-      return isAllowed(path, config.firestore.rules)
-        ? Task.succeed(undefined)
-        : Task.fail(new AccessDeniedError(path));
-    },
+    checkAccess: makeCheckAccess(config.firestore.rules),
   }));
