@@ -395,6 +395,49 @@ describe('Task#tapError', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Task#withTimeout
+// ---------------------------------------------------------------------------
+
+describe('Task#withTimeout', () => {
+  it('returns ok for tasks that complete before timeout', async () => {
+    const exit = await run(Task.succeed('done').withTimeout(1000));
+    expect(Exit.isOk(exit)).toBe(true);
+    if (Exit.isOk(exit)) expect(exit.value).toBe('done');
+  });
+
+  it('returns TimeoutError for tasks that exceed timeout', async () => {
+    const exit = await run(Task.never().withTimeout(10));
+    expect(Exit.isErr(exit)).toBe(true);
+    if (Exit.isErr(exit)) {
+      expect(exit.error).toEqual({ _tag: 'TimeoutError', ms: 10 });
+    }
+  });
+
+  it('preserves non-timeout errors', async () => {
+    const exit = await run(Task.fail('original').withTimeout(1000));
+    expect(Exit.isErr(exit)).toBe(true);
+    if (Exit.isErr(exit)) expect(exit.error).toBe('original');
+  });
+
+  it('preserves non-timeout die (e.g., exceptions)', async () => {
+    const exit = await run(Task.die('fatal').withTimeout(1000));
+    expect(Exit.isDie(exit)).toBe(true);
+    if (Exit.isDie(exit)) expect(exit.cause).toBe('fatal');
+  });
+
+  it('completes successfully if task finishes before timeout', async () => {
+    const exit = await run(
+      Task.attempt({
+        try: () => new Promise<string>((resolve) => setTimeout(() => resolve('late'), 50)),
+        catch: () => 'error',
+      }).withTimeout(100),
+    );
+    expect(Exit.isOk(exit)).toBe(true);
+    if (Exit.isOk(exit)) expect(exit.value).toBe('late');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Task.gen
 // ---------------------------------------------------------------------------
 
