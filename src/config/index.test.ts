@@ -26,6 +26,9 @@ const validProject = {
       deny: [],
     },
   },
+  timeouts: {
+    callMs: 15000,
+  },
 };
 
 describe('ProjectConfigSchema', () => {
@@ -65,6 +68,40 @@ describe('ProjectConfigSchema', () => {
       expect(result.data.firestore.maxCollectionReadSize).toBe(50);
       expect(result.data.firestore.maxBatchFetchSize).toBe(75);
     }
+  });
+
+  it('applies default call timeout of 15000ms when timeouts is omitted', () => {
+    const { timeouts: _timeouts, ...projectWithoutTimeouts } = validProject;
+    const result = ProjectConfigSchema.safeParse(projectWithoutTimeouts);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.timeouts.callMs).toBe(15000);
+    }
+  });
+
+  it('accepts explicit timeouts.callMs', () => {
+    const input = {
+      ...validProject,
+      timeouts: {
+        callMs: 25000,
+      },
+    };
+    const result = ProjectConfigSchema.safeParse(input);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.timeouts.callMs).toBe(25000);
+    }
+  });
+
+  it('fails when timeouts.callMs is below minimum', () => {
+    const input = {
+      ...validProject,
+      timeouts: {
+        callMs: 99,
+      },
+    };
+    const result = ProjectConfigSchema.safeParse(input);
+    expect(result.success).toBe(false);
   });
 
   it('fails when firebase.projectId is missing', () => {
@@ -171,8 +208,7 @@ const validAppConfigJson = JSON.stringify({
 });
 
 async function runTask<A, E>(task: import('../task').Task<A, E>) {
-  const { exit } = task.fork();
-  return exit;
+  return task.unsafeRun();
 }
 
 describe('loadConfig', () => {
@@ -201,6 +237,7 @@ describe('loadConfig', () => {
       const proj = result.value.projects['my-project'];
       expect(proj.firestore.maxCollectionReadSize).toBe(100);
       expect(proj.firestore.maxBatchFetchSize).toBe(200);
+      expect(proj.timeouts.callMs).toBe(15000);
     }
   });
 

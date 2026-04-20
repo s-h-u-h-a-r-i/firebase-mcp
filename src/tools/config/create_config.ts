@@ -25,6 +25,9 @@ const CONFIG_TEMPLATE: z.input<typeof AppConfigSchema> = {
           deny: [],
         },
       },
+      timeouts: {
+        callMs: 15000,
+      },
     },
   },
 };
@@ -35,6 +38,7 @@ const INSTRUCTIONS = [
   'Set firebase.projectId to your Firebase project ID (found in Firebase Console → Project Settings).',
   'Set firebase.serviceAccountPath to the absolute path of a service account JSON key file (Firebase Console → Project Settings → Service Accounts → Generate new private key).',
   'The firestore.rules.allow glob list controls which Firestore paths tools may read. ["**"] allows everything.',
+  'timeouts.callMs controls how long a tool call is allowed to run before the server aborts it (default: 15000ms).',
   'After saving the file, call reload_config to load it without restarting the server.',
 ];
 

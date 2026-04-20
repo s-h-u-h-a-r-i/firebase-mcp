@@ -20,6 +20,7 @@ const sanitize = (config: AppConfig): unknown => ({
           serviceAccountPath: '[omitted]',
         },
         firestore: project.firestore,
+        timeouts: project.timeouts,
       },
     ]),
   ),
