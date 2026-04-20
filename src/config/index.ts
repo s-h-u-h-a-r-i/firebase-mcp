@@ -29,9 +29,14 @@ const FirestoreConfigSchema = z.object({
   maxBatchFetchSize: z.number().default(200),
 });
 
+const TimeoutsConfigSchema = z.object({
+  callMs: z.number().int().min(100).max(120000).default(15000),
+});
+
 export const ProjectConfigSchema = z.object({
   firebase: FirebaseConfigSchema,
   firestore: FirestoreConfigSchema,
+  timeouts: TimeoutsConfigSchema.default({ callMs: 15000 }),
 });
 
 export const AppConfigSchema = z.object({

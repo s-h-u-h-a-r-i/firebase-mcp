@@ -54,8 +54,7 @@ describe('Exit', () => {
 // ---------------------------------------------------------------------------
 
 async function run<A, E>(task: Task<A, E>) {
-  const { exit } = task.fork();
-  return exit;
+  return task.unsafeRun();
 }
 
 // ---------------------------------------------------------------------------
@@ -94,7 +93,11 @@ describe('Task.sync', () => {
   });
 
   it('converts a thrown error to die', async () => {
-    const exit = await run(Task.sync(() => { throw new Error('sync boom'); }));
+    const exit = await run(
+      Task.sync(() => {
+        throw new Error('sync boom');
+      }),
+    );
     expect(Exit.isDie(exit)).toBe(true);
   });
 });
@@ -114,28 +117,36 @@ describe('Task.lazy', () => {
 
 describe('Task.attempt', () => {
   it('resolves to ok when the factory succeeds', async () => {
-    const exit = await run(Task.attempt({
-      try: () => Promise.resolve('done'),
-      catch: (e) => e,
-    }));
+    const exit = await run(
+      Task.attempt({
+        try: () => Promise.resolve('done'),
+        catch: (e) => e,
+      }),
+    );
     expect(Exit.isOk(exit)).toBe(true);
     if (Exit.isOk(exit)) expect(exit.value).toBe('done');
   });
 
   it('resolves to err when the factory throws', async () => {
-    const exit = await run(Task.attempt({
-      try: () => { throw new Error('fail'); },
-      catch: (e) => ({ mapped: true, cause: e }),
-    }));
+    const exit = await run(
+      Task.attempt({
+        try: () => {
+          throw new Error('fail');
+        },
+        catch: (e) => ({ mapped: true, cause: e }),
+      }),
+    );
     expect(Exit.isErr(exit)).toBe(true);
     if (Exit.isErr(exit)) expect((exit.error as any).mapped).toBe(true);
   });
 
   it('resolves to err when the promise rejects', async () => {
-    const exit = await run(Task.attempt({
-      try: () => Promise.reject(new Error('async fail')),
-      catch: (e) => String(e),
-    }));
+    const exit = await run(
+      Task.attempt({
+        try: () => Promise.reject(new Error('async fail')),
+        catch: (e) => String(e),
+      }),
+    );
     expect(Exit.isErr(exit)).toBe(true);
   });
 });
@@ -158,16 +169,18 @@ describe('Task#map', () => {
   });
 
   it('converts a mapper throw to die', async () => {
-    const exit = await run(Task.succeed(1).map(() => { throw new Error('map boom'); }));
+    const exit = await run(
+      Task.succeed(1).map(() => {
+        throw new Error('map boom');
+      }),
+    );
     expect(Exit.isDie(exit)).toBe(true);
   });
 });
 
 describe('Task#flatMap', () => {
   it('chains a successful continuation', async () => {
-    const exit = await run(
-      Task.succeed(5).flatMap((n) => Task.succeed(n + 1)),
-    );
+    const exit = await run(Task.succeed(5).flatMap((n) => Task.succeed(n + 1)));
     expect(Exit.isOk(exit)).toBe(true);
     if (Exit.isOk(exit)) expect(exit.value).toBe(6);
   });
@@ -196,7 +209,11 @@ describe('Task#flatMap', () => {
 describe('Task#tap', () => {
   it('runs a side effect and preserves the value', async () => {
     let seen: number | undefined;
-    const exit = await run(Task.succeed(7).tap((n) => { seen = n; }));
+    const exit = await run(
+      Task.succeed(7).tap((n) => {
+        seen = n;
+      }),
+    );
     expect(seen).toBe(7);
     expect(Exit.isOk(exit)).toBe(true);
     if (Exit.isOk(exit)) expect(exit.value).toBe(7);
@@ -204,7 +221,11 @@ describe('Task#tap', () => {
 
   it('skips the side effect on err', async () => {
     let ran = false;
-    await run(Task.fail('e').tap(() => { ran = true; }));
+    await run(
+      Task.fail('e').tap(() => {
+        ran = true;
+      }),
+    );
     expect(ran).toBe(false);
   });
 });
@@ -298,14 +319,20 @@ describe('Task#catchWhen', () => {
 describe('Task#filter', () => {
   it('passes when the predicate holds', async () => {
     const exit = await run(
-      Task.succeed(10).filter((n) => n > 5, () => 'too small'),
+      Task.succeed(10).filter(
+        (n) => n > 5,
+        () => 'too small',
+      ),
     );
     expect(Exit.isOk(exit)).toBe(true);
   });
 
   it('fails when the predicate does not hold', async () => {
     const exit = await run(
-      Task.succeed(3).filter((n) => n > 5, (n) => `${n} is too small`),
+      Task.succeed(3).filter(
+        (n) => n > 5,
+        (n) => `${n} is too small`,
+      ),
     );
     expect(Exit.isErr(exit)).toBe(true);
     if (Exit.isErr(exit)) expect(exit.error).toBe('3 is too small');
@@ -314,7 +341,13 @@ describe('Task#filter', () => {
   it('passes err through without evaluating the predicate', async () => {
     let ran = false;
     const exit = await run(
-      Task.fail('original').filter(() => { ran = true; return true; }, () => 'filtered'),
+      Task.fail('original').filter(
+        () => {
+          ran = true;
+          return true;
+        },
+        () => 'filtered',
+      ),
     );
     expect(ran).toBe(false);
     expect(Exit.isErr(exit)).toBe(true);
@@ -324,7 +357,13 @@ describe('Task#filter', () => {
   it('passes die through without evaluating the predicate', async () => {
     let ran = false;
     const exit = await run(
-      Task.die('fatal').filter(() => { ran = true; return true; }, () => 'filtered'),
+      Task.die('fatal').filter(
+        () => {
+          ran = true;
+          return true;
+        },
+        () => 'filtered',
+      ),
     );
     expect(ran).toBe(false);
     expect(Exit.isDie(exit)).toBe(true);
@@ -334,7 +373,11 @@ describe('Task#filter', () => {
 describe('Task#tapError', () => {
   it('runs a side effect on err without changing it', async () => {
     let seen: unknown;
-    const exit = await run(Task.fail('e').tapError((e) => { seen = e; }));
+    const exit = await run(
+      Task.fail('e').tapError((e) => {
+        seen = e;
+      }),
+    );
     expect(seen).toBe('e');
     expect(Exit.isErr(exit)).toBe(true);
     if (Exit.isErr(exit)) expect(exit.error).toBe('e');
@@ -342,7 +385,11 @@ describe('Task#tapError', () => {
 
   it('skips the side effect on ok', async () => {
     let ran = false;
-    await run(Task.succeed(1).tapError(() => { ran = true; }));
+    await run(
+      Task.succeed(1).tapError(() => {
+        ran = true;
+      }),
+    );
     expect(ran).toBe(false);
   });
 });

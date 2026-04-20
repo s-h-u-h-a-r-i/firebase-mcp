@@ -57,8 +57,7 @@ export class FirebaseMcpServer {
   }
 
   async start(): Promise<void> {
-    const { exit } = loadConfig(this.configPath).fork();
-    const result = await exit;
+    const result = await loadConfig(this.configPath).unsafeRun();
     if (result._tag === 'ok') {
       this.appConfig = result.value;
     } else {
@@ -72,9 +71,8 @@ export class FirebaseMcpServer {
       async () => ({ tools: allToolDefinitions }),
     );
 
-    this.mcpServer.server.setRequestHandler(
-      CallToolRequestSchema,
-      (request) => this.handleToolCall(request.params.name, request.params.arguments ?? {}),
+    this.mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
+      this.handleToolCall(request.params.name, request.params.arguments ?? {}),
     );
 
     await this.mcpServer.server.connect(new StdioServerTransport());
@@ -83,7 +81,8 @@ export class FirebaseMcpServer {
   private async handleToolCall(name: string, args: Record<string, unknown>) {
     if (name === CREATE_CONFIG) return createConfig();
 
-    if (name === RELOAD_CONFIG) return reloadConfig(() => this.reloadAppConfig());
+    if (name === RELOAD_CONFIG)
+      return reloadConfig(() => this.reloadAppConfig());
 
     if (!this.appConfig) {
       return toErrorResult(
@@ -95,7 +94,8 @@ export class FirebaseMcpServer {
 
     if (name === GET_CONFIG) return getConfig(this.appConfig);
 
-    const projectId = typeof args.projectId === 'string' ? args.projectId : null;
+    const projectId =
+      typeof args.projectId === 'string' ? args.projectId : null;
     if (!projectId) {
       return toErrorResult(
         'MISSING_PROJECT_ID',
@@ -124,13 +124,23 @@ export class FirebaseMcpServer {
       );
     }
 
-    const { exit } = dispatchTool(
+    const timeoutMs = projectConfig.timeouts.callMs;
+
+    const toolResult = await dispatchTool(
       ctx,
       name,
       toolArgs as Record<string, unknown> & { operation: string },
-    ).fork();
-    const toolResult = await exit;
+    )
+      .withTimeout(timeoutMs)
+      .unsafeRun();
 
+    if (toolResult._tag === 'err' && toolResult.error._tag === 'TimeoutError') {
+      return toErrorResult(
+        'TIMEOUT',
+        `Tool "${name}" timed out after ${timeoutMs}ms for project "${projectId}".`,
+        { projectId, timeoutMs, tool: name },
+      );
+    }
     if (toolResult._tag === 'ok') return toolResult.value;
 
     return toErrorResult(
@@ -142,8 +152,7 @@ export class FirebaseMcpServer {
   }
 
   private async reloadAppConfig() {
-    const { exit } = loadConfig(this.configPath).fork();
-    const result = await exit;
+    const result = await loadConfig(this.configPath).unsafeRun();
     if (result._tag !== 'ok') {
       throw result._tag === 'err' ? result.error : result.cause;
     }
@@ -159,8 +168,7 @@ export class FirebaseMcpServer {
     const cached = this.projectContexts.get(projectId);
     if (cached) return cached;
 
-    const { exit } = createProjectContext(config).fork();
-    const promise = exit.then((result) => {
+    const promise = createProjectContext(config).unsafeRun().then((result) => {
       if (result._tag === 'ok') return result.value;
       this.projectContexts.delete(projectId);
       throw result._tag === 'err' ? result.error : result.cause;

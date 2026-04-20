@@ -46,6 +46,10 @@ export class Task<A, E> {
     };
   }
 
+  unsafeRun(): Promise<Exit<A, E>> {
+    return this.run(new AbortController().signal);
+  }
+
   map<B>(f: (a: A) => B) {
     return new Task(async (signal) => {
       const exit = await this.run(signal);
@@ -139,6 +143,33 @@ export class Task<A, E> {
         return exit;
       });
     });
+  }
+
+  withTimeout(ms: number): Task<A, E | { _tag: 'TimeoutError'; ms: number }> {
+    return new Task(
+      async (
+        signal,
+      ): Promise<Exit<A, E | { _tag: 'TimeoutError'; ms: number }>> => {
+        const controller = new AbortController();
+        const combinedSignal = AbortSignal.any([signal, controller.signal]);
+
+        let timedOut = false;
+        const timer = setTimeout(() => {
+          timedOut = true;
+          controller.abort();
+        }, ms);
+
+        try {
+          const exit = await this.run(combinedSignal);
+          if (timedOut && exit._tag === 'die') {
+            return Exit.err({ _tag: 'TimeoutError' as const, ms });
+          }
+          return exit as Exit<A, E | { _tag: 'TimeoutError'; ms: number }>;
+        } finally {
+          clearTimeout(timer);
+        }
+      },
+    );
   }
 
   static succeed<A>(value: A) {
