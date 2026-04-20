@@ -7,6 +7,7 @@ import {
 
 import { AppConfig, getConfigPath, loadConfig, ProjectConfig } from '../config';
 import { createProjectContext, ProjectContext } from '../project';
+import { Exit } from '../task';
 import {
   allToolDefinitions,
   CREATE_CONFIG,
@@ -57,13 +58,12 @@ export class FirebaseMcpServer {
   }
 
   async start(): Promise<void> {
-    const { exit } = loadConfig(this.configPath).fork();
-    const result = await exit;
-    if (result._tag === 'ok') {
-      this.appConfig = result.value;
+    const exit = await loadConfig(this.configPath).unsafeRun();
+    if (Exit.isOk(exit)) {
+      this.appConfig = exit.value;
     } else {
       process.stderr.write(
-        `[firebase-mcp] Config not loaded (${this.configPath}): ${String(result._tag === 'err' ? result.error : result.cause)}. Use the create_config tool to see the required config structure.\n`,
+        `[firebase-mcp] Config not loaded (${this.configPath}): ${String(Exit.isErr(exit) ? exit.error : exit.cause)}. Use the create_config tool to see the required config structure.\n`,
       );
     }
 
@@ -72,9 +72,8 @@ export class FirebaseMcpServer {
       async () => ({ tools: allToolDefinitions }),
     );
 
-    this.mcpServer.server.setRequestHandler(
-      CallToolRequestSchema,
-      (request) => this.handleToolCall(request.params.name, request.params.arguments ?? {}),
+    this.mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
+      this.handleToolCall(request.params.name, request.params.arguments ?? {}),
     );
 
     await this.mcpServer.server.connect(new StdioServerTransport());
@@ -83,7 +82,8 @@ export class FirebaseMcpServer {
   private async handleToolCall(name: string, args: Record<string, unknown>) {
     if (name === CREATE_CONFIG) return createConfig();
 
-    if (name === RELOAD_CONFIG) return reloadConfig(() => this.reloadAppConfig());
+    if (name === RELOAD_CONFIG)
+      return reloadConfig(() => this.reloadAppConfig());
 
     if (!this.appConfig) {
       return toErrorResult(
@@ -95,7 +95,8 @@ export class FirebaseMcpServer {
 
     if (name === GET_CONFIG) return getConfig(this.appConfig);
 
-    const projectId = typeof args.projectId === 'string' ? args.projectId : null;
+    const projectId =
+      typeof args.projectId === 'string' ? args.projectId : null;
     if (!projectId) {
       return toErrorResult(
         'MISSING_PROJECT_ID',
@@ -124,32 +125,41 @@ export class FirebaseMcpServer {
       );
     }
 
-    const { exit } = dispatchTool(
+    const timeoutMs = projectConfig.timeouts.callMs;
+
+    const toolExit = await dispatchTool(
       ctx,
       name,
       toolArgs as Record<string, unknown> & { operation: string },
-    ).fork();
-    const toolResult = await exit;
+    )
+      .withTimeout(timeoutMs)
+      .unsafeRun();
 
-    if (toolResult._tag === 'ok') return toolResult.value;
+    if (Exit.isOk(toolExit)) return toolExit.value;
+    if (Exit.isErr(toolExit) && toolExit.error._tag === 'TimeoutError') {
+      return toErrorResult(
+        'TIMEOUT',
+        `Tool "${name}" timed out after ${timeoutMs}ms for project "${projectId}".`,
+        { projectId, timeoutMs, tool: name },
+      );
+    }
 
     return toErrorResult(
       'INTERNAL_ERROR',
       `Unexpected error: ${String(
-        toolResult._tag === 'err' ? toolResult.error : toolResult.cause,
+        Exit.isErr(toolExit) ? toolExit.error : toolExit.cause,
       )}`,
     );
   }
 
   private async reloadAppConfig() {
-    const { exit } = loadConfig(this.configPath).fork();
-    const result = await exit;
-    if (result._tag !== 'ok') {
-      throw result._tag === 'err' ? result.error : result.cause;
+    const exit = await loadConfig(this.configPath).unsafeRun();
+    if (exit._tag !== 'ok') {
+      throw Exit.isErr(exit) ? exit.error : exit.cause;
     }
     this.projectContexts.clear();
-    this.appConfig = result.value;
-    return { projects: Object.keys(result.value.projects) };
+    this.appConfig = exit.value;
+    return { projects: Object.keys(exit.value.projects) };
   }
 
   private getOrInitProject(
@@ -159,12 +169,13 @@ export class FirebaseMcpServer {
     const cached = this.projectContexts.get(projectId);
     if (cached) return cached;
 
-    const { exit } = createProjectContext(config).fork();
-    const promise = exit.then((result) => {
-      if (result._tag === 'ok') return result.value;
-      this.projectContexts.delete(projectId);
-      throw result._tag === 'err' ? result.error : result.cause;
-    });
+    const promise = createProjectContext(config)
+      .unsafeRun()
+      .then((exit) => {
+        if (Exit.isOk(exit)) return exit.value;
+        this.projectContexts.delete(projectId);
+        throw Exit.isErr(exit) ? exit.error : exit.cause;
+      });
     this.projectContexts.set(projectId, promise);
     return promise;
   }

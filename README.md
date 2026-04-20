@@ -80,6 +80,9 @@ The config supports multiple projects under a `projects` key. Each key becomes t
         },
         "maxCollectionReadSize": 100,
         "maxBatchFetchSize": 200
+      },
+      "timeouts": {
+        "callMs": 15000
       }
     }
   }
@@ -116,6 +119,7 @@ See the [Connecting to Cursor](#connecting-to-cursor) section below — no insta
 | `projects.<key>.firestore.rules.deny`            | `string[]` | —       | Glob patterns for denied Firestore paths (evaluated first) |
 | `projects.<key>.firestore.maxCollectionReadSize` | `number`   | `100`   | Default document limit for collection reads                |
 | `projects.<key>.firestore.maxBatchFetchSize`     | `number`   | `200`   | Maximum documents per batch fetch                          |
+| `projects.<key>.timeouts.callMs`                 | `number`   | `15000` | Max duration of a single tool call before timeout          |
 
 A custom config path can be passed at startup:
 
