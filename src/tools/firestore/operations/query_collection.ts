@@ -3,6 +3,7 @@ import { Task } from '../../../task';
 import type { OperationSchema } from '../../build-tool';
 import type { FirestorePropKey } from '../properties';
 import { collectionPathError } from '../utils/paths';
+import { applyQueryConstraints, buildIndexErrorHint } from '../utils/query';
 import { normalizeDocument, QueryFilter, QueryOrderBy } from '../utils/types';
 
 export class FirestoreQueryError extends Error {
@@ -53,8 +54,10 @@ export const queryCollection = (
     yield* ctx.checkAccess(input.collection);
 
     const db = ctx.firestore();
-    const maxLimit = ctx.config.firestore.maxCollectionReadSize;
-    const limit = Math.min(input.limit ?? maxLimit, maxLimit);
+    const limit = Math.min(
+      input.limit ?? ctx.config.firestore.maxCollectionReadSize,
+      ctx.config.firestore.maxCollectionReadSize,
+    );
 
     const cursorSnap = input.startAfter
       ? yield* Task.attempt({
@@ -69,30 +72,17 @@ export const queryCollection = (
       : null;
 
     const snapshot = yield* Task.attempt({
-      try: () => {
-        let query: FirebaseFirestore.Query = db.collection(input.collection);
-
-        if (input.select?.length) {
-          query = query.select(...input.select);
-        }
-
-        for (const filter of input.filters ?? []) {
-          query = query.where(filter.field, filter.operator, filter.value);
-        }
-
-        for (const order of input.orderBy ?? []) {
-          query = query.orderBy(order.field, order.direction ?? 'asc');
-        }
-
-        if (cursorSnap) {
-          query = query.startAfter(cursorSnap);
-        }
-
-        return query.limit(limit).get();
-      },
+      try: () =>
+        applyQueryConstraints(db.collection(input.collection), {
+          select: input.select,
+          filters: input.filters,
+          orderBy: input.orderBy,
+          cursorSnap,
+          limit,
+        }).get(),
       catch: (cause) =>
         new FirestoreQueryError(
-          `Failed to query collection: ${input.collection}`,
+          `Failed to query collection: ${input.collection}.${buildIndexErrorHint(cause)}`,
           cause,
         ),
     });
