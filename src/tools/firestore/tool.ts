@@ -44,6 +44,12 @@ import {
   listCollectionsOp,
 } from './operations/list_collections';
 import {
+  LIST_PATHS,
+  listPaths,
+  ListPathsArgs,
+  listPathsOp,
+} from './operations/list_paths';
+import {
   LIST_DOCUMENTS,
   listDocuments,
   ListDocumentsArgs,
@@ -76,6 +82,7 @@ import {
 import { FIRESTORE_PROPS } from './properties';
 
 const READ_OPERATIONS = [
+  LIST_PATHS,
   LIST_COLLECTIONS,
   LIST_DOCUMENTS,
   READ_COLLECTION,
@@ -108,6 +115,7 @@ export const firestoreReadDefinition = buildTool({
     'Read from Firebase Firestore. Use the operation field to select what to do.',
   allProperties: FIRESTORE_PROPS,
   ops: [
+    listPathsOp,
     listCollectionsOp,
     listDocumentsOp,
     readCollectionOp,
@@ -131,6 +139,8 @@ export const dispatchFirestoreRead = (
   const a = args;
   return Task.gen(function* () {
     switch (operation) {
+      case LIST_PATHS:
+        return yield* listPaths(ctx, a as ListPathsArgs);
       case LIST_COLLECTIONS:
         return yield* listCollections(ctx, a as ListCollectionsArgs);
       case LIST_DOCUMENTS:

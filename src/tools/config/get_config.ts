@@ -6,7 +6,7 @@ export const GET_CONFIG = 'get_config' as const;
 export const getConfigDefinition: Tool = {
   name: GET_CONFIG,
   description:
-    'Returns the current in-memory config, listing all available projects and their settings. Sensitive fields (e.g. serviceAccountPath) are omitted. Call this first to discover which projectId values are available for use with other tools.',
+    'Returns all in-memory project configs (excluding sensitive fields, e.g. serviceAccountPath). Use to find available projectId values. If hasPaths is true, use firestore_read list_paths for path templates.',
   inputSchema: { type: 'object', properties: {} },
 };
 
@@ -19,10 +19,15 @@ const sanitize = (config: AppConfig): unknown => ({
           projectId: project.firebase.projectId,
           serviceAccountPath: '[omitted]',
         },
-        firestore: project.firestore,
+        firestore: {
+          rules: project.firestore.rules,
+          maxCollectionReadSize: project.firestore.maxCollectionReadSize,
+          maxBatchFetchSize: project.firestore.maxBatchFetchSize,
+          hasPaths: Object.keys(project.firestore.paths).length > 0,
+        },
         timeouts: project.timeouts,
       },
-    ]),
+    ])
   ),
 });
 

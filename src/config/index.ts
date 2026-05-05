@@ -23,10 +23,16 @@ const FirestoreRulesSchema = z.object({
   deny: z.array(z.string()),
 });
 
+const FirestorePathSchema = z.object({
+  template: z.string(),
+  description: z.string().optional(),
+});
+
 const FirestoreConfigSchema = z.object({
   rules: FirestoreRulesSchema,
   maxCollectionReadSize: z.number().default(100),
   maxBatchFetchSize: z.number().default(200),
+  paths: z.record(z.string(), FirestorePathSchema).default({}),
 });
 
 const TimeoutsConfigSchema = z.object({
