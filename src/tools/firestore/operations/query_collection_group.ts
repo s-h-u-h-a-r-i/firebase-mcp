@@ -2,6 +2,7 @@ import type { ProjectContext } from '../../../project';
 import { Task } from '../../../task';
 import type { OperationSchema } from '../../build-tool';
 import type { FirestorePropKey } from '../properties';
+import { applyQueryConstraints, buildIndexErrorHint } from '../utils/query';
 import { normalizeDocument, QueryFilter, QueryOrderBy } from '../utils/types';
 
 export class FirestoreCollectionGroupQueryError extends Error {
@@ -48,10 +49,12 @@ export const queryCollectionGroup = (
     yield* ctx.checkAccess(input.collectionId);
 
     const db = ctx.firestore();
-    const maxLimit = ctx.config.firestore.maxCollectionReadSize;
-    const limit = Math.min(input.limit ?? maxLimit, maxLimit);
+    const limit = Math.min(
+      input.limit ?? ctx.config.firestore.maxCollectionReadSize,
+      ctx.config.firestore.maxCollectionReadSize,
+    );
 
-    // For collection group pagination, startAfter must be a full path
+    // collection group pagination requires a full doc path as cursor
     const cursorSnap = input.startAfter
       ? yield* Task.attempt({
           try: () => db.doc(input.startAfter!).get(),
@@ -64,32 +67,17 @@ export const queryCollectionGroup = (
       : null;
 
     const snapshot = yield* Task.attempt({
-      try: () => {
-        let query: FirebaseFirestore.Query = db.collectionGroup(
-          input.collectionId,
-        );
-
-        if (input.select?.length) {
-          query = query.select(...input.select);
-        }
-
-        for (const filter of input.filters ?? []) {
-          query = query.where(filter.field, filter.operator, filter.value);
-        }
-
-        for (const order of input.orderBy ?? []) {
-          query = query.orderBy(order.field, order.direction ?? 'asc');
-        }
-
-        if (cursorSnap) {
-          query = query.startAfter(cursorSnap);
-        }
-
-        return query.limit(limit).get();
-      },
+      try: () =>
+        applyQueryConstraints(db.collectionGroup(input.collectionId), {
+          select: input.select,
+          filters: input.filters,
+          orderBy: input.orderBy,
+          cursorSnap,
+          limit,
+        }).get(),
       catch: (cause) =>
         new FirestoreCollectionGroupQueryError(
-          `Failed to query collection group: ${input.collectionId}`,
+          `Failed to query collection group: ${input.collectionId}.${buildIndexErrorHint(cause)}`,
           cause,
         ),
     });
