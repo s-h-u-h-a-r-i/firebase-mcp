@@ -4,7 +4,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 
 ## Features
 
-- **12 Firestore read operations** covering collections, documents, queries, aggregations, distinct value counts, and schema inference
+- **13 Firestore read operations** — list/browse collections and documents, query (including collection groups), aggregates, counts, schema sampling, composite indexes, distinct value counts, and **`list_paths`** for configured path templates
 - **2 Firebase Auth operations** — look up users by UID or email, list users with pagination
 - **Multi-project support** — configure multiple Firebase projects in one config file; each tool call targets a specific project via `projectId`
 - **Glob-based access control** — allow/deny rules evaluated per Firestore path before any read is performed
@@ -21,7 +21,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 
 | Tool            | Description                                                                                                                 |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `create_config` | Returns a config template and setup instructions. Use this when no `firebase-mcp.json` exists yet.                          |
+| `create_config` | Returns a full config template (every supported field) and setup instructions. Use this when no `firebase-mcp.json` exists yet. |
 | `get_config`    | Returns the current in-memory config, listing all available projects. Call this first to discover valid `projectId` values. |
 | `reload_config` | Re-reads `firebase-mcp.json` from disk and evicts all cached project runtimes.                                              |
 
@@ -31,6 +31,7 @@ All operations are dispatched through the single `firestore_read` tool via the `
 
 | Operation                | Description                                                                                                                  |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `list_paths`             | Lists named [`firestore.paths`](#configuration) templates: placeholders, resolved type (collection vs document), optional description. |
 | `list_collections`       | List root collections or subcollections of a document. Optionally include document counts.                                   |
 | `list_documents`         | List all document IDs in a collection, including phantom documents. Optionally include subcollection names.                  |
 | `read_collection`        | Read documents from a collection with optional phantom-doc surfacing.                                                        |
@@ -79,7 +80,13 @@ The config supports multiple projects under a `projects` key. Each key becomes t
           "deny": []
         },
         "maxCollectionReadSize": 100,
-        "maxBatchFetchSize": 200
+        "maxBatchFetchSize": 200,
+        "paths": {
+          "example_orders": {
+            "template": "customers/{customerId}/orders",
+            "description": "Optional hint for agents; omit or replace with your own entries"
+          }
+        }
       },
       "timeouts": {
         "callMs": 15000
@@ -119,7 +126,8 @@ See the [Connecting to Cursor](#connecting-to-cursor) section below — no insta
 | `projects.<key>.firestore.rules.deny`            | `string[]` | —       | Glob patterns for denied Firestore paths (evaluated first) |
 | `projects.<key>.firestore.maxCollectionReadSize` | `number`   | `100`   | Default document limit for collection reads                |
 | `projects.<key>.firestore.maxBatchFetchSize`     | `number`   | `200`   | Maximum documents per batch fetch                          |
-| `projects.<key>.timeouts.callMs`                 | `number`   | `15000` | Max duration of a single tool call before timeout          |
+| `projects.<key>.firestore.paths`                | `object`   | `{}`    | Named path templates (`{ name: { template, description? } }`); `{param}` placeholders. Surfaces via `list_paths`. |
+| `projects.<key>.timeouts.callMs`                 | `number`   | `15000` | Max duration of a single tool call in ms (integer, min `100`, max `120000`) |
 
 A custom config path can be passed at startup:
 
