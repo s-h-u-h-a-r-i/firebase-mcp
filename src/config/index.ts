@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { homedir, platform } from 'node:os';
+import { join, resolve } from 'node:path';
+import { join as joinWindowsPath } from 'node:path/win32';
 import { z } from 'zod';
 
 import { Task } from '../task';
@@ -51,8 +53,7 @@ export const AppConfigSchema = z.object({
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
-const DEFAULT_CONFIG_PATH = './firebase-mcp.json';
-export const FIREBASE_MCP_CONFIG_ENV = 'FIREBASE_MCP_CONFIG';
+const CONFIG_FILE_NAME = 'firebase-mcp.json';
 
 export const loadConfig = (configPath: string): Task<AppConfig, ConfigError> =>
   Task.attempt({
@@ -72,5 +73,18 @@ export const loadConfig = (configPath: string): Task<AppConfig, ConfigError> =>
     },
   });
 
-export const getConfigPath = (): string =>
-  process.env[FIREBASE_MCP_CONFIG_ENV] ?? DEFAULT_CONFIG_PATH;
+export const getDefaultConfigPath = (): string => {
+  if (platform() === 'win32') {
+    return joinWindowsPath(
+      homedir(),
+      'AppData',
+      'Roaming',
+      'firebase-mcp',
+      CONFIG_FILE_NAME,
+    );
+  }
+
+  return join(homedir(), '.config', 'firebase-mcp', CONFIG_FILE_NAME);
+};
+
+export const getConfigPath = (): string => getDefaultConfigPath();

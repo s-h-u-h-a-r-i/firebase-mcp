@@ -62,7 +62,12 @@ All operations are dispatched through the single `auth_read` tool via the `opera
 
 ## Setup
 
-**1. Create `firebase-mcp.json`**
+**1. Create your per-user `firebase-mcp.json`**
+
+Create the file at:
+
+- Linux/macOS: `~/.config/firebase-mcp/firebase-mcp.json`
+- Windows: `%USERPROFILE%\AppData\Roaming\firebase-mcp\firebase-mcp.json`
 
 The config supports multiple projects under a `projects` key. Each key becomes the `projectId` value you pass to tool calls.
 
@@ -129,11 +134,10 @@ See the [Connecting to Cursor](#connecting-to-cursor) section below — no insta
 | `projects.<key>.firestore.paths`                | `object`   | `{}`    | Named path templates (`{ name: { template, description? } }`); `{param}` placeholders. Surfaces via `list_paths`. |
 | `projects.<key>.timeouts.callMs`                 | `number`   | `15000` | Max duration of a single tool call in ms (integer, min `100`, max `120000`) |
 
-A custom config path can be passed with the `FIREBASE_MCP_CONFIG` environment variable:
+The server reads config from a deterministic per-user path:
 
-```bash
-FIREBASE_MCP_CONFIG=/path/to/firebase-mcp.json node dist/cli/index.js
-```
+- Linux/macOS: `~/.config/firebase-mcp/firebase-mcp.json`
+- Windows: `%USERPROFILE%\AppData\Roaming\firebase-mcp\firebase-mcp.json`
 
 ## Access Control
 
@@ -157,10 +161,7 @@ Add to your MCP config (e.g. `.cursor/mcp.json`):
   "mcpServers": {
     "firebase": {
       "command": "npx",
-      "args": ["-y", "firebase-mcp"],
-      "env": {
-        "FIREBASE_MCP_CONFIG": "/path/to/firebase-mcp.json"
-      }
+      "args": ["-y", "firebase-mcp"]
     }
   }
 }

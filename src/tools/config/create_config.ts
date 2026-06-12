@@ -41,7 +41,7 @@ const CONFIG_TEMPLATE: z.input<typeof AppConfigSchema> = {
 };
 
 const INSTRUCTIONS = [
-  'Create firebase-mcp.json at the path your MCP server was started with (default: ./firebase-mcp.json, override with FIREBASE_MCP_CONFIG=/path/to/file).',
+  'Create firebase-mcp.json at the per-user config path where the MCP server looks by default (~/.config/firebase-mcp/firebase-mcp.json on Linux/macOS, %USERPROFILE%\\AppData\\Roaming\\firebase-mcp\\firebase-mcp.json on Windows).',
   'Replace "my-project" with a short identifier you will use as projectId in tool calls.',
   'Set firebase.projectId to your Firebase project ID (found in Firebase Console → Project Settings).',
   'Set firebase.serviceAccountPath to the absolute path of a service account JSON key file (Firebase Console → Project Settings → Service Accounts → Generate new private key).',
