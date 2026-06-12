@@ -129,10 +129,10 @@ See the [Connecting to Cursor](#connecting-to-cursor) section below — no insta
 | `projects.<key>.firestore.paths`                | `object`   | `{}`    | Named path templates (`{ name: { template, description? } }`); `{param}` placeholders. Surfaces via `list_paths`. |
 | `projects.<key>.timeouts.callMs`                 | `number`   | `15000` | Max duration of a single tool call in ms (integer, min `100`, max `120000`) |
 
-A custom config path can be passed at startup:
+A custom config path can be passed with the `FIREBASE_MCP_CONFIG` environment variable:
 
 ```bash
-node dist/cli/index.js --config /path/to/firebase-mcp.json
+FIREBASE_MCP_CONFIG=/path/to/firebase-mcp.json node dist/cli/index.js
 ```
 
 ## Access Control
@@ -157,7 +157,10 @@ Add to your MCP config (e.g. `.cursor/mcp.json`):
   "mcpServers": {
     "firebase": {
       "command": "npx",
-      "args": ["-y", "firebase-mcp", "--config", "/path/to/firebase-mcp.json"]
+      "args": ["-y", "firebase-mcp"],
+      "env": {
+        "FIREBASE_MCP_CONFIG": "/path/to/firebase-mcp.json"
+      }
     }
   }
 }

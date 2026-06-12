@@ -1,4 +1,3 @@
-import minimist from 'minimist';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
@@ -52,6 +51,9 @@ export const AppConfigSchema = z.object({
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
+const DEFAULT_CONFIG_PATH = './firebase-mcp.json';
+export const FIREBASE_MCP_CONFIG_ENV = 'FIREBASE_MCP_CONFIG';
+
 export const loadConfig = (configPath: string): Task<AppConfig, ConfigError> =>
   Task.attempt({
     try: () => {
@@ -70,7 +72,5 @@ export const loadConfig = (configPath: string): Task<AppConfig, ConfigError> =>
     },
   });
 
-export const getConfigPath = (): string => {
-  const args = minimist(process.argv.slice(2));
-  return args['config'] ?? './firebase-mcp.json';
-};
+export const getConfigPath = (): string =>
+  process.env[FIREBASE_MCP_CONFIG_ENV] ?? DEFAULT_CONFIG_PATH;
