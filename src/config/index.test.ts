@@ -1,15 +1,18 @@
 import { readFileSync } from 'node:fs';
+import { homedir, platform } from 'node:os';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ConfigError,
   ProjectConfigSchema,
+  getDefaultConfigPath,
   getConfigPath,
   loadConfig,
 } from './index';
 
 vi.mock('node:fs');
+vi.mock('node:os');
 
 // ---------------------------------------------------------------------------
 // ProjectConfigSchema — the innermost validated unit, no file I/O needed
@@ -294,23 +297,35 @@ describe('loadConfig', () => {
 // ---------------------------------------------------------------------------
 
 describe('getConfigPath', () => {
-  const originalEnv = process.env.FIREBASE_MCP_CONFIG;
-
   afterEach(() => {
-    if (originalEnv === undefined) {
-      delete process.env.FIREBASE_MCP_CONFIG;
-    } else {
-      process.env.FIREBASE_MCP_CONFIG = originalEnv;
-    }
+    vi.mocked(homedir).mockReset();
+    vi.mocked(platform).mockReset();
   });
 
-  it('returns the value of FIREBASE_MCP_CONFIG when provided', () => {
-    process.env.FIREBASE_MCP_CONFIG = '/custom/config.json';
-    expect(getConfigPath()).toBe('/custom/config.json');
+  it('returns a deterministic Linux/macOS user config path', () => {
+    vi.mocked(homedir).mockReturnValue('/home/user');
+    vi.mocked(platform).mockReturnValue('linux');
+
+    expect(getDefaultConfigPath()).toBe(
+      '/home/user/.config/firebase-mcp/firebase-mcp.json',
+    );
   });
 
-  it('falls back to ./firebase-mcp.json when FIREBASE_MCP_CONFIG is absent', () => {
-    delete process.env.FIREBASE_MCP_CONFIG;
-    expect(getConfigPath()).toBe('./firebase-mcp.json');
+  it('returns a deterministic Windows user config path', () => {
+    vi.mocked(homedir).mockReturnValue('C:\\Users\\user');
+    vi.mocked(platform).mockReturnValue('win32');
+
+    expect(getDefaultConfigPath()).toBe(
+      'C:\\Users\\user\\AppData\\Roaming\\firebase-mcp\\firebase-mcp.json',
+    );
+  });
+
+  it('uses the deterministic default config path', () => {
+    vi.mocked(homedir).mockReturnValue('/home/user');
+    vi.mocked(platform).mockReturnValue('linux');
+
+    expect(getConfigPath()).toBe(
+      '/home/user/.config/firebase-mcp/firebase-mcp.json',
+    );
   });
 });
