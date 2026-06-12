@@ -294,19 +294,23 @@ describe('loadConfig', () => {
 // ---------------------------------------------------------------------------
 
 describe('getConfigPath', () => {
-  const originalArgv = process.argv;
+  const originalEnv = process.env.FIREBASE_MCP_CONFIG;
 
   afterEach(() => {
-    process.argv = originalArgv;
+    if (originalEnv === undefined) {
+      delete process.env.FIREBASE_MCP_CONFIG;
+    } else {
+      process.env.FIREBASE_MCP_CONFIG = originalEnv;
+    }
   });
 
-  it('returns the value of --config when provided', () => {
-    process.argv = ['node', 'script.js', '--config', '/custom/config.json'];
+  it('returns the value of FIREBASE_MCP_CONFIG when provided', () => {
+    process.env.FIREBASE_MCP_CONFIG = '/custom/config.json';
     expect(getConfigPath()).toBe('/custom/config.json');
   });
 
-  it('falls back to ./firebase-mcp.json when --config is absent', () => {
-    process.argv = ['node', 'script.js'];
+  it('falls back to ./firebase-mcp.json when FIREBASE_MCP_CONFIG is absent', () => {
+    delete process.env.FIREBASE_MCP_CONFIG;
     expect(getConfigPath()).toBe('./firebase-mcp.json');
   });
 });
